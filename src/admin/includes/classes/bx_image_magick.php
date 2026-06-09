@@ -2,14 +2,18 @@
 /**
  * Bildmanipulation via Imagick für modified eCommerce.
  *
+ * Diese Klasse kapselt das Skalieren, Konvertieren und Nachbearbeiten von
+ * Produktbildern auf Basis von Imagick. Sie bildet die bekannte Schnittstelle
+ * der bisherigen Bildmanipulation nach, verarbeitet Transform-Strings in eine
+ * interne Effekt-Queue und schreibt neben dem Zielbild bei Bedarf auch moderne
+ * Ableitungen wie WebP oder AVIF.
+ *
  * @file        bx_image_magick.php
  * @package     bx-image-magick
- * @author      Blade
- * @idea        modulfux (Ideengeber)
- * @copyright   modulfux
- * @copyright   Blade
+ * @author      bx-codemaster (benax)
+ * @website     www.bx-coding.de
  * @license     GNU General Public License (GPL)
- * @since       2018-06-04
+ * @since       2026-06-10
  */
 
 
@@ -63,15 +67,20 @@ class image_manipulation {
   protected string $jpegFlattenBackgroundColor = '#FFFFFF';
 
   /**
-   * __construct
+   * Initialisiert eine Bildmanipulationsinstanz mit Quelle, Ziel und Optionen.
    *
-   * bx_image_magick constructor.
-    * @param string $resource_file
-    * @param int $max_width
-    * @param int $max_height
-    * @param string $destination_file
-    * @param int|null $compression
-    * @param string $transform
+   * Der Konstruktor übernimmt Dateipfade, Zielabmessungen, Qualitätsvorgaben
+   * und optionale Transform-Definitionen. Wird kein Transform-String übergeben,
+   * wird er anhand des Zielpfads automatisch aus der Bildgrößen-Konfiguration
+   * ermittelt. Optional kann die Bildverarbeitung bereits beim Erzeugen des
+   * Objekts sofort gestartet werden.
+   *
+   * @param string $resource_file Absoluter Pfad zur Quelldatei.
+   * @param int $max_width Maximale Zielbreite für die Skalierung.
+   * @param int $max_height Maximale Zielhöhe für die Skalierung.
+   * @param string $destination_file Absoluter Pfad der Zieldatei.
+   * @param int|null $compression Qualitätswert für die Ausgabe oder null für den Standardwert.
+   * @param string $transform Optionaler Transform-String mit Effektdefinitionen.
    */
   function __construct($resource_file, $max_width, $max_height, $destination_file = '', $compression = null, $transform = '') {
     $this->resource_file    = $resource_file;
@@ -103,14 +112,19 @@ class image_manipulation {
   }
 
   /**
-   * Kompatible Merge-Signatur wie im Shop aufgerufen.
-    *
-    * @param string $merge_file
-    * @param int $x_pos
-    * @param int $y_pos
-    * @param int $opacity
-    * @param int|string $scale_or_trans_colour
-    * @return void
+   * Registriert eine Overlay-Datei für die spätere Merge-Verarbeitung.
+   *
+   * Die Methode bildet die aus dem Shop bekannte Merge-Signatur nach und legt
+   * die gewünschte Overlay-Datei mit Position, Transparenz und optionaler
+   * Skalierung oder Transparenzfarbe in der Merge-Queue ab. Die eigentliche
+   * Verarbeitung erfolgt erst im Rahmen der Bildpipeline.
+   *
+   * @param string $merge_file Pfad zur einzublendenden Overlay-Datei.
+   * @param int $x_pos Horizontale Zielposition oder negativer Offset von rechts.
+   * @param int $y_pos Vertikale Zielposition oder negativer Offset von unten.
+   * @param int $opacity Deckkraft des Overlays im Bereich von 0 bis 100.
+   * @param int|string $scale_or_trans_colour Skalierungswert in Prozent oder Transparenzfarbe als Hex-Wert.
+   * @return void
    */
   public function merge($merge_file, $x_pos = 0, $y_pos = 0, $opacity = 100, $scale_or_trans_colour = 'FF0000') {
     $scale = 100;
@@ -133,10 +147,16 @@ class image_manipulation {
   }
 
   /**
-   * create
+   * Führt die vollständige Bildverarbeitung und Ausgabe der Zieldatei aus.
    *
-   * @throws \ImagickException
-    * @return void
+   * Die Methode lädt die Quelldatei, korrigiert bei Bedarf die Orientierung,
+   * skaliert das Bild, konvertiert CMYK nach RGB, wendet alle registrierten
+   * Effekte und Merges an und schreibt anschließend die Zieldatei im passenden
+   * Format. Zusätzlich können moderne Ableitungen wie WebP oder AVIF erzeugt
+   * werden. Bei Fehlern wird die Verarbeitung protokolliert und sauber beendet.
+   *
+   * @throws \ImagickException Kann von Imagick-nahen Operationen ausgelöst werden.
+   * @return void
    */
   public function create() {
     if (!class_exists('Imagick')) {
@@ -207,7 +227,14 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
+   * Wendet Transform-Queue, Effekt-Queue und Merge-Queue auf ein Bild an.
+   *
+   * Falls ein Transform-String vorliegt, wird dieser zunächst in konkrete
+   * Effekte übersetzt. Anschließend werden alle queued Effekte und Overlays auf
+   * das übergebene Imagick-Objekt angewendet. Zum Schluss wird die virtuelle
+   * Arbeitsfläche zurückgesetzt, damit keine Offsets in die Ausgabe durchrutschen.
+   *
+   * @param object $img Zu verarbeitende Imagick-Instanz.
    * @return void
    */
   protected function runProcessingPipeline(&$img) {
@@ -229,10 +256,17 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
-   * @param int $imageType
-   * @param string $destination
-   * @return string
+   * Konfiguriert Formatpolitik und Schreibziel für das finale Ausgabebild.
+   *
+   * Abhängig vom erkannten Zieltyp werden Hintergrund, Alpha-Verhalten,
+   * Interlacing, Kompression und das eigentliche Ausgabeformat vorbereitet. Für
+   * JPEG wird das Bild vor dem Schreiben flachgerechnet, während PNG, WebP,
+   * AVIF und GIF ihre Alpha-Informationen beibehalten.
+   *
+   * @param object $img Zu konfigurierende Imagick-Instanz.
+   * @param int $imageType Erkannter Zieltyp anhand Dateiendung oder Bildformat.
+   * @param string $destination Ursprünglicher Zielpfad.
+   * @return string Schreibziel inklusive optionalem Formatpräfix für Imagick.
    */
   protected function configureOutputFormatPolicy(&$img, $imageType, $destination) {
     $writeTarget = (string)$destination;
@@ -274,8 +308,14 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
-   * @param int $imageType
+   * Finalisiert ein Bild unmittelbar vor dem Schreiben auf den Datenträger.
+   *
+   * Vor der Ausgabe werden Schärfung, Qualitätsstufe, Metadatenbereinigung und
+   * das Zurücksetzen der virtuellen Bildfläche ausgeführt. Damit bleibt die
+   * tatsächliche Ausgabe konsistent über alle unterstützten Formate hinweg.
+   *
+   * @param object $img Vorbereitetes Imagick-Bild.
+   * @param int $imageType Zieltyp, der für formatabhängige Schärfung genutzt wird.
    * @return void
    */
   protected function finalizeImageForWrite($img, $imageType) {
@@ -288,9 +328,13 @@ class image_manipulation {
   }
 
   /**
-   * Wird im Shop nach create() aufgerufen.
-    *
-    * @return void
+   * Erzeugt eine WebP-Ableitung aus der bereits geschriebenen Zieldatei.
+   *
+   * Die Methode bleibt zur Kompatibilität mit bestehenden Shop-Aufrufen
+   * erhalten. Sie wird nur aktiv, wenn WebP als Ableitungsformat vorgesehen ist
+   * und create() die WebP-Datei nicht bereits direkt mitgeschrieben hat.
+   *
+   * @return void
    */
   public function createWebp() {
     if (!$this->shouldWriteWebp()) {
@@ -319,7 +363,12 @@ class image_manipulation {
   }
 
   /**
-   * Kompatibel zur GD-Klasse: parst den Transform-String in eine Effekt-Queue.
+   * Parst den aktuellen Transform-String in konkrete Effekte der Effekt-Queue.
+   *
+   * Die Methode sorgt für Kompatibilität zur bisherigen GD-basierten Klasse.
+   * Jeder Ausdruck des Transform-Strings wird analysiert, validiert und in die
+   * interne Effekt-Queue übernommen, damit die eigentliche Verarbeitung später
+   * in einer einheitlichen Pipeline stattfinden kann.
    *
    * @return void
    */
@@ -334,9 +383,16 @@ class image_manipulation {
   }
 
   /**
-   * @param int $edge_width
-   * @param string $light_colour
-   * @param string $dark_colour
+   * Registriert einen Bevel-Effekt für die spätere Verarbeitung.
+   *
+   * Der Effekt wird nicht sofort ausgeführt, sondern mit seinen Parametern in
+   * die interne Effekt-Queue geschrieben. Die Farbparameter bleiben dabei aus
+   * Kompatibilitätsgründen erhalten, auch wenn Imagick den Effekt später nur
+   * vereinfacht nachbildet.
+   *
+   * @param int $edge_width Breite der Kantenanhebung in Pixeln.
+   * @param string $light_colour Helle Akzentfarbe des Effekts.
+   * @param string $dark_colour Dunkle Akzentfarbe des Effekts.
    * @return void
    */
   public function bevel($edge_width = 10, $light_colour = 'FFFFFF', $dark_colour = '000000') {
@@ -347,9 +403,15 @@ class image_manipulation {
   }
 
   /**
-   * @param int $rv
-   * @param int $gv
-   * @param int $bv
+   * Registriert einen gewichteten Greyscale-Effekt.
+   *
+   * Die drei Parameter definieren die relative Gewichtung der Farbkanäle für
+   * die spätere Graustufenbildung. Die eigentliche Umrechnung erfolgt erst in
+   * der Effektpipeline.
+   *
+   * @param int $rv Gewichtung des Rotkanals.
+   * @param int $gv Gewichtung des Grünkanals.
+   * @param int $bv Gewichtung des Blaukanals.
    * @return void
    */
   public function greyscale($rv = 0, $gv = 0, $bv = 0) {
@@ -360,7 +422,13 @@ class image_manipulation {
   }
 
   /**
-   * @param string $bg_colour
+   * Registriert einen elliptischen Beschnitt für das Zielbild.
+   *
+   * Die übergebene Hintergrundfarbe wird später für Formate ohne Transparenz
+   * als JPEG-Hintergrund vorgemerkt, während der eigentliche Beschnitt über
+   * eine gerundete Maske in der Effektpipeline erfolgt.
+   *
+   * @param string $bg_colour Hintergrundfarbe für flachgerechnete Ausgaben.
    * @return void
    */
   public function ellipse($bg_colour = 'FFFFFF') {
@@ -371,9 +439,15 @@ class image_manipulation {
   }
 
   /**
-   * @param int $edge_rad
-   * @param string $bg_colour
-   * @param int $anti_alias
+   * Registriert abgerundete Ecken für das Zielbild.
+   *
+   * Gespeichert werden Radius, Hintergrundfarbe und ein Kompatibilitätswert für
+   * Anti-Aliasing. Die eigentliche Maskierung wird später bei der Anwendung der
+   * Effekte ausgeführt.
+   *
+   * @param int $edge_rad Radius der Rundung in Pixeln.
+   * @param string $bg_colour Hintergrundfarbe für transparente Zielbereiche.
+   * @param int $anti_alias Kompatibilitätsparameter zur historischen Signatur.
    * @return void
    */
   public function round_edges($edge_rad = 3, $bg_colour = 'FFFFFF', $anti_alias = 1) {
@@ -384,10 +458,16 @@ class image_manipulation {
   }
 
   /**
-   * @param string $light_colour
-   * @param string $dark_colour
-   * @param int $mid_width
-   * @param string $frame_colour
+   * Registriert einen Rahmeneffekt für das spätere Zielbild.
+   *
+   * Die Parameter werden unverändert in der Effekt-Queue abgelegt. Bei der
+   * späteren Ausführung wird daraus ein einfacher Border-Effekt erzeugt, der die
+   * historische Signatur der GD-Klasse nachbildet.
+   *
+   * @param string $light_colour Helle Rahmenfarbe aus der alten Schnittstelle.
+   * @param string $dark_colour Dunkle Rahmenfarbe aus der alten Schnittstelle.
+   * @param int $mid_width Rahmenbreite in Pixeln.
+   * @param string $frame_colour Effektive Rahmenfarbe, sofern explizit gesetzt.
    * @return void
    */
   public function frame($light_colour = 'FFFFFF', $dark_colour = '000000', $mid_width = 4, $frame_colour = '') {
@@ -398,9 +478,15 @@ class image_manipulation {
   }
 
   /**
-   * @param int $shadow_width
-   * @param string $shadow_colour
-   * @param string $shadow_backgroundcolor
+   * Registriert einen Schatteneffekt für die Effektpipeline.
+   *
+   * Gespeichert werden die Schattenbreite sowie Vorder- und Hintergrundfarbe.
+   * Die eigentliche Schattenkomposition erfolgt später über mehrere gestaffelte
+   * Schattenebenen im Imagick-Workflow.
+   *
+   * @param int $shadow_width Breite des Schattens in Pixeln.
+   * @param string $shadow_colour Farbe des Schattens als Hex-Wert.
+   * @param string $shadow_backgroundcolor Hintergrundfarbe für Formate ohne Alpha-Kanal.
    * @return void
    */
   public function drop_shadow($shadow_width, $shadow_colour = '000000', $shadow_backgroundcolor = 'FFFFFF') {
@@ -411,8 +497,14 @@ class image_manipulation {
   }
 
   /**
-   * @param int $num_blur_lines
-   * @param string $background_colour
+   * Registriert einen Motion-Blur-Effekt für die spätere Verarbeitung.
+   *
+   * Die Anzahl der Blur-Linien wird für die Intensität des späteren Effekts
+   * vorgemerkt. Die Hintergrundfarbe bleibt als Kompatibilitätsparameter in der
+   * historischen Signatur erhalten.
+   *
+   * @param int $num_blur_lines Stärke des Bewegungsunschärfe-Effekts.
+   * @param string $background_colour Historischer Hintergrundparameter der GD-Signatur.
    * @return void
    */
   public function motion_blur($num_blur_lines, $background_colour = 'FFFFFF') {
@@ -423,10 +515,15 @@ class image_manipulation {
   }
 
   /**
-   * Kompatibilitaetsmethode zur GD-Klasse.
+   * Korrigiert die Bildorientierung anhand der EXIF-Daten einer JPEG-Datei.
    *
-   * @param string $resource_file
-   * @return string
+   * Für nicht unterstützte Dateitypen oder fehlende EXIF-Funktionen wird der
+   * ursprüngliche Pfad unverändert zurückgegeben. Bei erfolgreicher Korrektur
+   * wird eine temporäre JPEG-Datei erzeugt, deren Pfad in der Instanz für die
+   * spätere Bereinigung vorgemerkt wird.
+   *
+   * @param string $resource_file Pfad zur ursprünglichen Quelldatei.
+   * @return string Pfad zur korrigierten Datei oder zur Originaldatei.
    */
   public function correctImageOrientation($resource_file) {
     if (!class_exists('Imagick') || !is_file($resource_file)) {
@@ -476,7 +573,11 @@ class image_manipulation {
   }
 
   /**
-   * Kompatibilitaetsmethode zur GD-Klasse.
+   * Stellt die historische sharpen()-Signatur für Kompatibilitätsaufrufe bereit.
+   *
+   * Die eigentliche Schärfung wird im Imagick-Workflow zentral über
+   * applySharpen() vor dem Schreiben des Bildes gesteuert. Diese Methode bleibt
+   * daher bewusst leer und dient nur als stabile öffentliche API.
    *
    * @return void
    */
@@ -485,9 +586,15 @@ class image_manipulation {
   }
 
   /**
-   * @param int $width
-   * @param int $height
-   * @return array{width:int,height:int}
+   * Berechnet die endgültige Zielgröße unter Beibehaltung des Seitenverhältnisses.
+   *
+   * Als Grundlage dienen die konfigurierten Maximalmaße der Instanz. Optional
+   * wird ein Vergrößern kleiner Bilder unterdrückt. Das Ergebnis enthält immer
+   * mindestens ein Pixel pro Achse.
+   *
+   * @param int $width Ursprüngliche Bildbreite.
+   * @param int $height Ursprüngliche Bildhöhe.
+   * @return array{width:int,height:int} Berechnete Zielmaße für die Skalierung.
    */
   protected function calculateTargetSize($width, $height) {
     $maxWidth = (int)$this->max_width;
@@ -521,9 +628,15 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
-   * @param string $destination
-   * @return int
+   * Ermittelt den Zielformattyp anhand Dateiendung und aktuellem Bildformat.
+   *
+   * Zunächst wird die Dateiendung des Zielpfads ausgewertet. Falls daraus kein
+   * eindeutiges Ergebnis entsteht, dient das aktuell gesetzte Imagick-Format als
+   * Fallback. Ohne Treffer wird JPEG als sicherer Standard angenommen.
+   *
+   * @param object $img Imagick-Instanz mit eventuell bereits gesetztem Format.
+   * @param string $destination Zielpfad der Ausgabedatei.
+   * @return int PHP-IMAGETYPE-Konstante des erkannten Zielformats.
    */
   protected function detectImageType($img, $destination) {
     $ext = strtolower((string)pathinfo($destination, PATHINFO_EXTENSION));
@@ -565,7 +678,13 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
+   * Führt alle registrierten Effekte in definierter Reihenfolge auf dem Bild aus.
+   *
+   * Die Methode iteriert über die interne Effekt-Queue und ruft je nach Typ die
+   * passende Imagick-Verarbeitung auf. Fehler einzelner Effekte werden isoliert
+   * protokolliert, damit die restliche Pipeline weiterlaufen kann.
+   *
+   * @param object $img Imagick-Instanz, auf die die Effekte angewendet werden.
    * @return void
    */
   protected function applyEffectOperations(&$img) {
@@ -631,10 +750,16 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
-   * @param int $rv
-   * @param int $gv
-   * @param int $bv
+   * Wandelt ein Bild anhand gewichteter Farbkanäle in Graustufen um.
+   *
+   * Die Gewichtung der RGB-Kanäle wird aus den übergebenen Werten berechnet und
+   * anschließend pixelweise auf das Bild angewendet. Sind alle Gewichte null,
+   * wird das Bild unverändert belassen.
+   *
+   * @param object $img Zu bearbeitende Imagick-Instanz.
+   * @param int $rv Gewichtung des Rotkanals.
+   * @param int $gv Gewichtung des Grünkanals.
+   * @param int $bv Gewichtung des Blaukanals.
    * @return void
    */
   protected function applyWeightedGreyscale($img, $rv = 0, $gv = 0, $bv = 0) {
@@ -669,11 +794,18 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
+   * Konvertiert ein CMYK-Bild über ICC-Profile in den RGB-Farbraum.
+   *
+   * Fehlende Profile werden nach Möglichkeit aus der Modulkonfiguration oder aus
+   * Standarddateien geladen. Nach der Profiltransformation wird optional noch
+   * eine leichte Level-Korrektur vorgenommen, um zu flache Ergebnisse zu
+   * vermeiden.
+   *
+   * @param object $img Imagick-Instanz im CMYK-Farbraum.
    * @return void
    */
   protected function convertCmykToRgb($img) {
-    $profiles = $img->getImageProfiles('*', false);
+    $profiles        = $img->getImageProfiles('*', false);
     $has_icc_profile = (array_search('icc', $profiles) !== false);
 
     $icc_cmyk_path = $this->resolveIccProfilePath('IMAGEMANIPULATOR_ICC_PROFILE_CMYK', 'PSOcoated_v3.icc', 'CoatedFOGRA39.icc');
@@ -706,7 +838,14 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
+   * Verarbeitet alle vorgemerkten Overlay-Merges auf dem aktuellen Bild.
+   *
+   * Jedes Overlay kann optional skaliert, teiltransparent gemacht und über eine
+   * definierte Transparenzfarbe freigestellt werden. Negative Koordinaten werden
+   * kompatibel zur Legacy-Implementierung als Offsets von rechts oder unten
+   * interpretiert.
+   *
+   * @param object $img Zielbild, auf das alle Overlays komponiert werden.
    * @return void
    */
   protected function applyMergeOperations($img) {
@@ -775,8 +914,14 @@ class image_manipulation {
   }
 
   /**
-   * @param string $value
-   * @return array<int, string>
+   * Trennt einen Transform-Ausdruck an Kommata der obersten Klammer-Ebene.
+   *
+   * Kommas in verschachtelten Klammern oder innerhalb von Quotes bleiben dabei
+   * erhalten, sodass komplexere Effektargumente sicher in Einzelausdrücke
+   * zerlegt werden können.
+   *
+   * @param string $value Kompletter Transform-String oder Argumentausdruck.
+   * @return array<int, string> Liste der extrahierten Top-Level-Ausdrücke.
    */
   protected function splitTopLevel($value) {
     $parts = array();
@@ -839,7 +984,13 @@ class image_manipulation {
   }
 
   /**
-   * @param string $expression
+   * Überführt einen einzelnen Transform-Ausdruck in einen Methodenaufruf.
+   *
+   * Der Ausdruck wird syntaktisch geprüft, auf erlaubte Manipulationen
+   * beschränkt und anschließend mit geparsten Skalarwerten gegen die passende
+   * Effektmethode der Klasse aufgerufen.
+   *
+   * @param string $expression Einzelner Effekt-Ausdruck aus dem Transform-String.
    * @return void
    */
   protected function applyManipulationExpression($expression) {
@@ -872,8 +1023,13 @@ class image_manipulation {
   }
 
   /**
-   * @param string $value
-   * @return mixed
+   * Wandelt einen String aus dem Transform-Parser in einen skalaren PHP-Wert um.
+   *
+   * Unterstützt werden gequotete Strings, Booleans, null sowie numerische
+   * Werte. Alles andere wird unverändert als String zurückgegeben.
+   *
+   * @param string $value Rohwert eines Arguments aus dem Transform-Ausdruck.
+   * @return mixed Normalisierter Skalarwert für den Methodenaufruf.
    */
   protected function parseScalar($value) {
     $value = trim((string)$value);
@@ -899,8 +1055,13 @@ class image_manipulation {
   }
 
   /**
-   * @param string $value
-   * @return bool
+   * Prüft, ob ein String vollständig von passenden Quotes umschlossen ist.
+   *
+   * Die Methode erkennt sowohl einfache als auch doppelte Anführungszeichen und
+   * dient dem Parser als kleine Hilfsfunktion beim Entpacken von Stringwerten.
+   *
+   * @param string $value Zu prüfender Ausdruck.
+   * @return bool True, wenn der Ausdruck gequotet ist, sonst false.
    */
   protected function isQuoted($value) {
     $length = strlen((string)$value);
@@ -913,8 +1074,14 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
-   * @param int $radius
+   * Legt eine gerundete Maske über das Bild und beschneidet dessen Alpha-Kanal.
+   *
+   * Bei sehr großem Radius wird eine Ellipse erzeugt, ansonsten ein Rechteck
+   * mit runden Ecken. Die Maske wird anschließend über den Ziel-Alpha-Kanal auf
+   * das Bild angewendet.
+   *
+   * @param object $img Zu maskierende Imagick-Instanz.
+   * @param int $radius Radius der Rundung oder großer Wert für eine Ellipse.
    * @return void
    */
   protected function applyRoundedMask($img, $radius) {
@@ -946,8 +1113,14 @@ class image_manipulation {
   }
 
   /**
-   * @param object $shadow
-   * @param string $shadowColor
+   * Färbt eine vorbereitete Schattenebene anhand ihres Alpha-Kanals ein.
+   *
+   * Dazu wird zunächst der Alpha-Kanal separiert und anschließend auf eine neue,
+   * vollflächige Ebene in der gewünschten Schattenfarbe übertragen. Die
+   * ursprüngliche Schatteninstanz wird durch das neu colorierte Bild ersetzt.
+   *
+   * @param object $shadow Referenz auf die zu färbende Schattenebene.
+   * @param string $shadowColor Gewünschte Schattenfarbe als Hex-Wert.
    * @return void
    */
   protected function colorizeShadowImage(&$shadow, $shadowColor) {
@@ -979,12 +1152,19 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
-   * @param string $shadowColor
-   * @param int $opacity
-   * @param float $sigma
-   * @param int $offset
-   * @return object|null
+   * Erzeugt aus dem aktuellen Bild eine einzelne weichgezeichnete Schattenebene.
+   *
+   * Das Bild wird geklont, mit Schattenfarbe und Alpha-Konfiguration versehen
+   * und anschließend über shadowImage() in eine versetzte Schattenebene
+   * umgewandelt. Bei Fehlern liefert die Methode null und räumt erzeugte Objekte
+   * sauber wieder auf.
+   *
+   * @param object $img Vorlage für die Schattenebene.
+   * @param string $shadowColor Farbe des Schattens.
+   * @param int $opacity Deckkraft des Schattens.
+   * @param float $sigma Weichzeichnungsstärke des Schattens.
+   * @param int $offset Versatz des Schattens in X- und Y-Richtung.
+   * @return object|null Fertige Schattenebene oder null bei Fehlern.
    */
   protected function createDropShadowLayer($img, $shadowColor, $opacity, $sigma, $offset) {
     $shadow = null;
@@ -1021,10 +1201,17 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
-   * @param int $shadowWidth
-   * @param string $shadowColor
-   * @param int $shadowFade
+   * Baut einen mehrlagigen Schatteneffekt und komponiert ihn mit dem Bild.
+   *
+   * Für einen weicheren Schatten werden mehrere Ebenen mit unterschiedlicher
+   * Deckkraft, Unschärfe und Verschiebung erzeugt und auf einer transparenten
+   * Arbeitsfläche zusammengesetzt. Am Ende ersetzt die neue Komposition das
+   * bisherige Bildobjekt.
+   *
+   * @param object $img Referenz auf das zu erweiternde Zielbild.
+   * @param int $shadowWidth Grundbreite des Schattens in Pixeln.
+   * @param string $shadowColor Schattenfarbe als Hex-Wert.
+   * @param int $shadowFade Verlaufslänge des Schattens im Bereich 20 bis 100.
    * @return void
    */
   protected function applyDropShadowEffect(&$img, $shadowWidth, $shadowColor, $shadowFade = 65) {
@@ -1120,7 +1307,13 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
+   * Bereitet ein Bild für die interne Alpha-Pipeline vor.
+   *
+   * Der Hintergrund wird auf transparent gesetzt und der Alpha-Kanal explizit
+   * aktiviert, damit nachgelagerte Effekte wie Masken oder Schatten konsistent
+   * auf transparenten Zwischenständen arbeiten können.
+   *
+   * @param object $img Zu initialisierende Imagick-Instanz.
    * @return void
    */
   protected function prepareImageForAlphaPipeline($img) {
@@ -1129,7 +1322,13 @@ class image_manipulation {
   }
 
   /**
-   * @param string $color
+   * Merkt eine Hintergrundfarbe für spätere JPEG-Ausgaben vor.
+   *
+   * Leere Werte werden ignoriert. Gültige Farben werden normalisiert und als
+   * Standardhintergrund für das spätere Flattening von Formaten ohne Alpha
+   * gespeichert.
+   *
+   * @param string $color Farbwert aus einem Effektparameter.
    * @return void
    */
   protected function registerJpegBackgroundColor($color) {
@@ -1142,9 +1341,15 @@ class image_manipulation {
   }
 
   /**
-   * @param string $color
-   * @param string $fallback
-   * @return string
+   * Normalisiert einen Farbwert auf das Format #RRGGBB.
+   *
+   * Drei- und sechsstellige Hex-Werte werden akzeptiert. Ungültige Eingaben
+   * führen zum übergebenen Fallback, damit alle nachgelagerten Bildoperationen
+   * mit einem sicheren Farbwert arbeiten.
+   *
+   * @param string $color Zu prüfender Farbwert.
+   * @param string $fallback Rückgabefarbe bei ungültiger Eingabe.
+   * @return string Normalisierte Hex-Farbe inklusive führendem #.
    */
   protected function normalizeHexColor($color, $fallback = '#FFFFFF') {
     $hex = strtoupper(trim((string)$color));
@@ -1159,8 +1364,14 @@ class image_manipulation {
   }
 
   /**
-   * @param int|string|null $quality
-   * @return int
+   * Wandelt eine Qualitätsangabe in einen gültigen Ausgabewert um.
+   *
+   * Nicht gesetzte oder ungültige Qualitätswerte werden auf die Shop-Konstante
+   * IMAGE_QUALITY beziehungsweise einen sicheren Standardwert zurückgeführt.
+   * Das Ergebnis wird immer auf den Bereich 1 bis 100 begrenzt.
+   *
+   * @param int|string|null $quality Eingabewert aus Konfiguration oder Aufruf.
+   * @return int Normalisierte Qualitätsstufe für die Ausgabe.
    */
   protected function normalizeQuality($quality) {
     $q = (int)$quality;
@@ -1171,7 +1382,14 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
+   * Wendet die konfigurierte Schärfung passend zum Zielformat an.
+   *
+   * Falls ein externes Sharpen-Modul vorhanden ist, wird dessen Kernel bevorzugt
+   * über convolveImage() verwendet. Andernfalls erhält JPEG-Ausgabe ab einer
+   * ausreichenden Qualitätsstufe eine moderate Unsharp-Mask-Nachschärfung.
+   *
+   * @param object $img Zu schärfende Imagick-Instanz.
+   * @param int $image_type Zieltyp des Bildes.
    * @return void
    */
   protected function applySharpen($img, $image_type = IMAGETYPE_JPEG) {
@@ -1228,8 +1446,14 @@ class image_manipulation {
   }
 
   /**
-   * @param string $source_file
-   * @return bool
+   * Prüft, ob eine Quelldatei gegenüber den Zielmaßen skaliert werden muss.
+   *
+   * Dazu werden zunächst die Originalabmessungen sicher gelesen und anschließend
+   * mit den durch calculateTargetSize() ermittelten Zielmaßen verglichen.
+   * Fehler beim Lesen führen vorsorglich zu true.
+   *
+   * @param string $source_file Pfad zur Quelldatei.
+   * @return bool True, wenn eine Größenänderung erforderlich ist, sonst false.
    */
   protected function needsResize($source_file) {
     $info = $this->safeGetImageSize($source_file, __METHOD__, (string)$source_file);
@@ -1253,9 +1477,15 @@ class image_manipulation {
   }
 
   /**
-   * @param Exception $e
-   * @param string $method
-   * @param string $context
+   * Protokolliert eine Ausnahme aus dem Imagick-Workflow.
+   *
+   * Die Meldung wird bevorzugt in die Imagick-Logdatei im Shop-Logverzeichnis
+   * geschrieben. Falls das nicht möglich ist, erfolgt ein Fallback auf das
+   * allgemeine PHP-Error-Log.
+   *
+   * @param Exception $e Auszulösende oder abgefangene Ausnahme.
+   * @param string $method Methodenname oder technischer Ursprung der Meldung.
+   * @param string $context Optionaler Zusatzkontext, etwa Dateipfad oder Effektname.
    * @return void
    */
   protected function logImagickException($e, $method, $context = '') {
@@ -1276,10 +1506,16 @@ class image_manipulation {
   }
 
   /**
-   * @param string $dir
-   * @param string $method
-   * @param string $context
-   * @return bool
+   * Stellt sicher, dass ein Zielverzeichnis für die Ausgabe existiert.
+   *
+   * Existierende Verzeichnisse werden akzeptiert, fehlende rekursiv angelegt.
+   * Schlägt das Anlegen fehl, wird der Fehler protokolliert und false
+   * zurückgegeben.
+   *
+   * @param string $dir Zu prüfendes oder anzulegendes Verzeichnis.
+   * @param string $method Aufrufender Methodenname für das Logging.
+   * @param string $context Optionaler Zusatzkontext für die Protokollierung.
+   * @return bool True bei vorhandenem oder erfolgreich angelegtem Verzeichnis.
    */
   protected function ensureDirectoryExists($dir, $method, $context = '') {
     if ($dir === '' || is_dir($dir)) {
@@ -1295,9 +1531,15 @@ class image_manipulation {
   }
 
   /**
-   * @param string $filePath
-   * @param string $method
-   * @param string $context
+   * Löscht eine Datei sicher und protokolliert fehlgeschlagene Löschversuche.
+   *
+   * Nicht vorhandene Dateien werden still ignoriert. Fehler beim Entfernen einer
+   * existierenden Datei werden als RuntimeException in das Modul-Logging
+   * übernommen.
+   *
+   * @param string $filePath Zu löschender Dateipfad.
+   * @param string $method Aufrufende Methode für die Fehlerprotokollierung.
+   * @param string $context Optionaler Zusatzkontext für das Logging.
    * @return void
    */
   protected function safeUnlink($filePath, $method, $context = '') {
@@ -1311,10 +1553,16 @@ class image_manipulation {
   }
 
   /**
-   * @param string $filePath
-   * @param string $method
-   * @param string $context
-   * @return string|false
+   * Liest eine Datei mit abgefangenen PHP-Warnungen sicher ein.
+   *
+   * Temporäre Error-Handler sammeln Laufzeitwarnungen ein und wandeln sie bei
+   * Fehlschlag in eine protokollierte RuntimeException um. So bleibt der Aufrufer
+   * frei von direkten PHP-Warnungen im Ausgabekontext.
+   *
+   * @param string $filePath Zu lesender Dateipfad.
+   * @param string $method Aufrufende Methode für die Fehlerprotokollierung.
+   * @param string $context Optionaler Zusatzkontext für das Logging.
+   * @return string|false Dateiinhalt oder false bei Fehlern.
    */
   protected function safeFileGetContents($filePath, $method, $context = '') {
     $errorMessage = '';
@@ -1338,10 +1586,15 @@ class image_manipulation {
   }
 
   /**
-   * @param string $filePath
-   * @param string $method
-   * @param string $context
-   * @return int|false
+   * Ermittelt den EXIF-Bildtyp einer Datei mit abgefangenen Warnungen.
+   *
+   * Fehler der internen PHP-Funktion werden gesammelt und bei Bedarf über das
+   * Modul-Logging protokolliert, statt ungefiltert im Laufzeitkontext zu landen.
+   *
+   * @param string $filePath Pfad der zu prüfenden Datei.
+   * @param string $method Aufrufende Methode für die Fehlerprotokollierung.
+   * @param string $context Optionaler Zusatzkontext für das Logging.
+   * @return int|false Erkannter IMAGETYPE-Wert oder false bei Fehlern.
    */
   protected function safeExifImageType($filePath, $method, $context = '') {
     $errorMessage = '';
@@ -1364,10 +1617,16 @@ class image_manipulation {
   }
 
   /**
-   * @param string $filePath
-   * @param string $method
-   * @param string $context
-   * @return array<int, mixed>|false
+   * Liest Bildinformationen über getimagesize() mit eigener Fehlerbehandlung.
+   *
+   * Warnungen werden temporär abgefangen und bei Fehlschlägen über das interne
+   * Logging protokolliert. Erfolgreiche Aufrufe liefern die üblichen Dimensionen
+   * und Metadaten von getimagesize().
+   *
+   * @param string $filePath Pfad zur zu analysierenden Bilddatei.
+   * @param string $method Aufrufende Methode für die Fehlerprotokollierung.
+   * @param string $context Optionaler Zusatzkontext für das Logging.
+   * @return array<int, mixed>|false Bildinformationen oder false bei Fehlern.
    */
   protected function safeGetImageSize($filePath, $method, $context = '') {
     $errorMessage = '';
@@ -1390,6 +1649,12 @@ class image_manipulation {
   }
 
   /**
+   * Entfernt eine temporär erzeugte Quelldatei und setzt den Status zurück.
+   *
+   * Wird während der Orientierungskorrektur eine temporäre Datei angelegt,
+   * übernimmt diese Methode deren Bereinigung nach Abschluss der Verarbeitung.
+   * Anschließend wird die interne Referenz zurückgesetzt.
+   *
    * @return void
    */
   protected function cleanupTemporarySource() {
@@ -1400,8 +1665,14 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
-   * @param string $method
+   * Schreibt aus dem aktuellen Bildzustand zusätzliche moderne Ausgabeformate.
+   *
+   * Abhängig von der Konfiguration werden WebP- und AVIF-Ableitungen nur dann
+   * erzeugt, wenn das Zielformat nicht ohnehin bereits diesem Typ entspricht.
+   * Erfolgreiche WebP-Schreibvorgänge markieren den internen Status entsprechend.
+   *
+   * @param object $img Bereits verarbeitetes Ausgangsbild.
+   * @param string $method Aufrufende Methode für Logging und Fehlerkontext.
    * @return void
    */
   protected function writeModernFormatsFromImage($img, $method) {
@@ -1417,23 +1688,38 @@ class image_manipulation {
   }
 
   /**
-   * @param int $imageType
-   * @return bool
+   * Prüft, ob ein IMAGETYPE-Wert dem WebP-Format entspricht.
+   *
+   * Die Prüfung berücksichtigt, dass die WebP-Konstante nur in unterstützten
+   * Umgebungen definiert ist.
+   *
+   * @param int $imageType Zu prüfender Bildtyp.
+   * @return bool True bei WebP, sonst false.
    */
   protected function isImageTypeWebp($imageType) {
     return defined('IMAGETYPE_WEBP') && (int)$imageType === (int)IMAGETYPE_WEBP;
   }
 
   /**
-   * @param int $imageType
-   * @return bool
+   * Prüft, ob ein IMAGETYPE-Wert dem AVIF-Format entspricht.
+   *
+   * Die Prüfung wird nur dann positiv, wenn die AVIF-Konstante in der aktuellen
+   * PHP-Umgebung überhaupt verfügbar ist.
+   *
+   * @param int $imageType Zu prüfender Bildtyp.
+   * @return bool True bei AVIF, sonst false.
    */
   protected function isImageTypeAvif($imageType) {
     return defined('IMAGETYPE_AVIF') && (int)$imageType === (int)IMAGETYPE_AVIF;
   }
 
   /**
-   * @return bool
+   * Prüft, ob gemäß Shop-Konfiguration eine WebP-Ausgabe gewünscht ist.
+   *
+   * Grundlage ist die Konstante IMAGE_TYPE_EXTENSION. Ist sie nicht gesetzt
+   * oder enthält sie einen anderen Wert, wird false zurückgegeben.
+   *
+   * @return bool True, wenn WebP als Ziel- oder Ableitungsformat aktiv ist.
    */
   protected function shouldWriteWebp() {
     if (!defined('IMAGE_TYPE_EXTENSION')) {
@@ -1444,7 +1730,12 @@ class image_manipulation {
   }
 
   /**
-   * @return bool
+   * Prüft, ob gemäß Shop-Konfiguration eine AVIF-Ausgabe gewünscht ist.
+   *
+   * Grundlage ist die Konstante IMAGE_TYPE_EXTENSION. Nur der explizite Wert
+   * avif aktiviert die zusätzliche oder direkte AVIF-Erzeugung.
+   *
+   * @return bool True, wenn AVIF als Ziel- oder Ableitungsformat aktiv ist.
    */
   protected function shouldWriteAvif() {
     if (!defined('IMAGE_TYPE_EXTENSION')) {
@@ -1455,10 +1746,16 @@ class image_manipulation {
   }
 
   /**
-   * @param object $img
-   * @param string $format
-   * @param string $method
-   * @return bool
+   * Schreibt eine zusätzliche Format-Ableitung auf Basis des aktuellen Bildes.
+   *
+   * Vor dem Schreiben wird geprüft, ob Imagick das gewünschte Format überhaupt
+   * unterstützt. Anschließend wird ein Klon des Bildes in das Zielformat
+   * überführt und unter einem abgeleiteten Dateinamen gespeichert.
+   *
+   * @param object $img Ausgangsbild für die Ableitung.
+   * @param string $format Gewünschtes Zielformat wie webp oder avif.
+   * @param string $method Aufrufender Methodenname für Logging und Fehlerkontext.
+   * @return bool True bei erfolgreichem Schreiben, sonst false.
    */
   protected function writeDerivedFormatImage($img, $format, $method) {
     if ($this->destination_file === null || $this->destination_file === '') {
@@ -1490,9 +1787,14 @@ class image_manipulation {
   }
 
   /**
-   * @param string $filePath
-   * @param string $targetExtension
-   * @return string
+   * Erzeugt den Dateipfad für eine abgeleitete Bilddatei mit neuer Endung.
+   *
+   * Existiert bereits eine Dateiendung, wird sie ersetzt. Andernfalls wird die
+   * gewünschte Zielerweiterung an den ursprünglichen Pfad angehängt.
+   *
+   * @param string $filePath Ausgangspfad des Original- oder Zielbildes.
+   * @param string $targetExtension Gewünschte neue Dateierweiterung.
+   * @return string Pfad der abgeleiteten Ausgabedatei.
    */
   protected function buildDerivedImagePath($filePath, $targetExtension) {
     $derived = preg_replace('/\.[^.]+$/', '.' . ltrim((string)$targetExtension, '.'), (string)$filePath);
@@ -1504,7 +1806,12 @@ class image_manipulation {
   }
 
   /**
-   * @return object
+   * Erzeugt eine neue Imagick-Instanz über dynamische Klassennamenauflösung.
+   *
+   * Die indirekte Instanziierung vereinfacht Kompatibilität mit statischer
+   * Analyse und hält die Erstellung der Kernklasse an einer zentralen Stelle.
+   *
+   * @return object Neue Imagick-Instanz.
    */
   protected function createImagickInstance() {
     $class = 'Imagick';
@@ -1512,8 +1819,13 @@ class image_manipulation {
   }
 
   /**
-   * @param string $color
-   * @return object
+   * Erzeugt ein ImagickPixel-Objekt für einen gegebenen Farbwert.
+   *
+   * Die Hilfsmethode bündelt die Pixelerzeugung zentral, damit Farbangaben in
+   * der gesamten Klasse konsistent in ImagickPixel-Instanzen überführt werden.
+   *
+   * @param string $color Farbdefinition für das neue Pixelobjekt.
+   * @return object Neue ImagickPixel-Instanz.
    */
   protected function createImagickPixelInstance($color) {
     $class = 'ImagickPixel';
@@ -1521,7 +1833,12 @@ class image_manipulation {
   }
 
   /**
-   * @return object
+   * Erzeugt ein neues ImagickDraw-Objekt für Masken und Vektoroperationen.
+   *
+   * Die Erstellung wird über diese Hilfsmethode zentralisiert, damit Zeichen-
+   * operationen an einer Stelle gekapselt bleiben.
+   *
+   * @return object Neue ImagickDraw-Instanz.
    */
   protected function createImagickDrawInstance() {
     $class = 'ImagickDraw';
@@ -1529,9 +1846,14 @@ class image_manipulation {
   }
 
   /**
-   * @param string $name
-   * @param int $fallback
-   * @return int
+   * Liest eine Imagick-Konstante sicher aus und liefert andernfalls einen Fallback.
+   *
+   * So kann die Klasse auch in Umgebungen arbeiten, in denen bestimmte
+   * Imagick-Konstanten nicht definiert sind oder je nach Version abweichen.
+   *
+   * @param string $name Name der Imagick-Konstante ohne Klassenpräfix.
+   * @param int $fallback Ersatzwert bei fehlender Konstante.
+   * @return int Aufgelöster Konstantenwert oder der Fallback.
    */
   protected function imagickConst($name, $fallback) {
     $const = 'Imagick::' . $name;
@@ -1539,10 +1861,16 @@ class image_manipulation {
   }
 
   /**
-   * @param string $constantName
-   * @param string $defaultFile
-   * @param string $legacyFallbackFile
-   * @return string
+   * Ermittelt den Pfad zu einem ICC-Profil aus Konfiguration und Fallbacks.
+   *
+   * Zuerst wird ein konfigurierter Dateiname geprüft, danach das Standardprofil
+   * und optional ein Legacy-Fallback. Nur tatsächlich vorhandene Dateien werden
+   * als Ergebnis zurückgegeben.
+   *
+   * @param string $constantName Name der Konstante mit dem konfigurierten Profilnamen.
+   * @param string $defaultFile Standarddatei für moderne Installationen.
+   * @param string $legacyFallbackFile Optionales Ausweichprofil für ältere Setups.
+   * @return string Absoluter Pfad zum gefundenen Profil oder ein leerer String.
    */
   protected function resolveIccProfilePath($constantName, $defaultFile, $legacyFallbackFile = '') {
     $baseDir = dirname(__FILE__) . '/ICC/';
@@ -1572,8 +1900,14 @@ class image_manipulation {
   }
 
   /**
-   * @param string $destinationFile
-   * @return string
+   * Leitet aus dem Zielpfad automatisch den passenden Transform-String ab.
+   *
+   * Dazu wird der Zielpfad normiert und mit den bekannten Bildverzeichnissen
+   * des Shops verglichen. Bei einem Treffer wird die zugehörige Transform-
+   * Konstante der jeweiligen Bildgröße zurückgegeben.
+   *
+   * @param string $destinationFile Zielpfad des auszugebenden Bildes.
+   * @return string Ermittelter Transform-String oder ein leerer String.
    */
   protected function resolveAutoTransformForDestination($destinationFile) {
     $destination = $this->normalizePathForCompare($destinationFile);
@@ -1608,8 +1942,14 @@ class image_manipulation {
   }
 
   /**
-   * @param string $path
-   * @return string
+   * Normalisiert einen Dateipfad für robuste Präfixvergleiche.
+   *
+   * Backslashes werden vereinheitlicht, doppelte Trenner reduziert, die
+   * Schreibweise auf Kleinbuchstaben gebracht und ein abschließender Slash
+   * ergänzt. Leere oder unbrauchbare Eingaben ergeben einen leeren String.
+   *
+   * @param string $path Zu normalisierender Dateipfad.
+   * @return string Vergleichstauglicher Normalform-Pfad.
    */
   protected function normalizePathForCompare($path) {
     $path = trim((string)$path);

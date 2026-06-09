@@ -1,14 +1,51 @@
 <?php
+/**
+ * JavaScript-Helfer für die Admin-Oberfläche von bx_image_magick.
+ *
+ * Dieses Script synchronisiert die Tab-Navigation, Slider, Farbfelder und
+ * Transform-Strings der Bildgrößen-Konfiguration im Adminbereich. Außerdem
+ * stellt es sicher, dass die zuletzt verwendete Registerkarte kurzzeitig im
+ * Browser gespeichert und beim nächsten Laden wiederhergestellt wird.
+ *
+ * @file        bx_image_magick.php
+ * @package     bx-image-magick
+ * @author      bx-codemaster (benax)
+ * @website     www.bx-coding.de
+ * @license     GNU General Public License (GPL)
+ * @since       2026-06-10
+ */
   defined('_VALID_XTC') or die('Direct Access to this location is not allowed.');
 
-  if ( defined('MODULE_BX_IMAGE_MAGICK_STATUS') && 'True' == MODULE_BX_IMAGE_MAGICK_STATUS  && basename($_SERVER['PHP_SELF']) == 'bx_image_magick.php') {
+  if (defined('MODULE_BX_IMAGE_MAGICK_STATUS') && 'True' == MODULE_BX_IMAGE_MAGICK_STATUS && basename($_SERVER['PHP_SELF']) == 'bx_image_magick.php') {
 ?>
 <script>
 "use strict";
-document.addEventListener('DOMContentLoaded', function () {
+
+/**
+ * Initialisiert die JavaScript-Logik der bx_image_magick Adminseite.
+ *
+ * Die Funktion verdrahtet Tab-Wechsel, Slider-Synchronisation, Farbvorschauen,
+ * Greyscale-Auswahl und die Wiederherstellung der letzten geöffneten
+ * Registerkarte. Alle Hilfsfunktionen bleiben bewusst lokal gekapselt, damit
+ * sie nur innerhalb dieser Adminseite verfügbar sind.
+ *
+ * @returns {void}
+ */
+function initializeBxImageMagickAdmin() {
   const tabs = document.querySelectorAll('.magick-tabs .tab-nav a');
   const contents = document.querySelectorAll('.magick-tabs .tab-content > div');
+  const STORAGE_KEY = 'bxImageMagickActiveTab';
+  const EXPIRATION_MS = 1000 * 60 * 60;
 
+  /**
+   * Trennt einen Transform-String nur an Kommas der obersten Ebene.
+   *
+   * Kommas innerhalb von Klammern oder innerhalb von Quotes bleiben erhalten,
+   * damit zusammengesetzte Effekt-Parameter nicht versehentlich zerlegt werden.
+   *
+   * @param {string} value Vollständiger Transform-String.
+   * @returns {string[]} Liste der obersten Transform-Tokens ohne Leerwerte.
+   */
   function splitTopLevelExpressions(value) {
     const parts = [];
     let buffer = '';
@@ -69,6 +106,17 @@ document.addEventListener('DOMContentLoaded', function () {
     return parts;
   }
 
+  /**
+   * Liest einen ganzzahligen Effektparameter aus einem Transform-String aus.
+   *
+   * Die Funktion sucht nach einem Effektaufruf wie effectName(12) und liefert
+   * den ersten numerischen Parameter zurück. Wird kein passender Effekt
+   * gefunden, gibt sie null zurück.
+   *
+   * @param {string} transformValue Zu analysierender Transform-String.
+   * @param {string} effectName Name des gesuchten Effekts.
+   * @returns {number|null} Extrahierter Zahlenwert oder null.
+   */
   function parseEffectInt(transformValue, effectName) {
     const regex = new RegExp(effectName + '\\s*\\(\\s*(-?\\d+)\\s*(?:,|\\))', 'i');
     const match = String(transformValue || '').match(regex);
@@ -78,6 +126,16 @@ document.addEventListener('DOMContentLoaded', function () {
     return parseInt(match[1], 10);
   }
 
+  /**
+   * Normalisiert einen Hex-Farbwert auf das Format RRGGBB.
+   *
+   * Führende Rautenzeichen werden entfernt, drei Zeichen lange Farben werden
+   * expandiert und ungültige Werte fallen auf den übergebenen Fallback zurück.
+   *
+   * @param {string} value Zu prüfender Farbwert.
+   * @param {string} fallback Rückgabewert bei ungültiger Eingabe.
+   * @returns {string} Normalisierte Hex-Farbe ohne führendes #.
+   */
   function normalizeHexColor(value, fallback) {
     const raw = String(value || '').trim().replace(/^#/, '').toUpperCase();
     if (/^[0-9A-F]{3}$/.test(raw)) {
@@ -89,6 +147,16 @@ document.addEventListener('DOMContentLoaded', function () {
     return String(fallback || '000000').replace(/^#/, '').toUpperCase();
   }
 
+  /**
+   * Extrahiert die Konfiguration eines drop_shadow-Effekts.
+   *
+   * Ausgelesen werden Breite, Schattenfarbe, Hintergrundfarbe und optionaler
+   * Fade-Wert. Kann kein gültiger Effekt gefunden werden, liefert die Funktion
+   * null.
+   *
+   * @param {string} transformValue Zu analysierender Transform-String.
+   * @returns {{width:number,color:string,background:string,fade:number}|null} Extrahierte Schattenkonfiguration oder null.
+   */
   function parseDropShadowConfig(transformValue) {
     const match = String(transformValue || '').match(/drop_shadow\s*\(\s*(-?\d+)\s*(?:,\s*([#A-Fa-f0-9]{3,6})\s*)?(?:,\s*([#A-Fa-f0-9]{3,6})\s*)?(?:,\s*(-?\d{1,3})\s*)?\)/i);
     if (!match) {
@@ -103,6 +171,15 @@ document.addEventListener('DOMContentLoaded', function () {
     };
   }
 
+  /**
+   * Extrahiert die Parameter eines round_edges-Effekts.
+   *
+   * Die Funktion liest den Radius und die optionale Hintergrundfarbe aus und
+   * bereitet sie für die UI-Synchronisation auf.
+   *
+   * @param {string} transformValue Zu analysierender Transform-String.
+   * @returns {{radius:number,background:string}|null} Extrahierte Round-Edges-Konfiguration oder null.
+   */
   function parseRoundEdgesConfig(transformValue) {
     const match = String(transformValue || '').match(/round_edges\s*\(\s*(-?\d+)\s*(?:,\s*([#A-Fa-f0-9]{3,6})\s*)?(?:,\s*(-?\d+)\s*)?\)/i);
     if (!match) {
@@ -115,6 +192,16 @@ document.addEventListener('DOMContentLoaded', function () {
     };
   }
 
+  /**
+   * Begrenzt einen Zahlenwert auf den Wertebereich eines Sliders.
+   *
+   * Nicht-finite Werte fallen auf den Minimalwert des Sliders zurück. Der
+   * Rückgabewert ist immer auf min und max des Sliders begrenzt.
+   *
+   * @param {number} value Zu prüfender Wert.
+   * @param {HTMLInputElement} slider Slider mit min- und max-Attributen.
+   * @returns {number} Gültiger Sliderwert innerhalb des erlaubten Bereichs.
+   */
   function clampToSliderRange(value, slider) {
     const min = parseInt(slider.min || '0', 10);
     const max = parseInt(slider.max || '100', 10);
@@ -123,6 +210,22 @@ document.addEventListener('DOMContentLoaded', function () {
     return next;
   }
 
+  /**
+   * Baut einen Transform-String aus den Round-Edges- und Drop-Shadow-Slidern.
+   *
+   * Bestehende round_edges- und drop_shadow-Einträge werden entfernt und an
+   * ihrer ursprünglichen Position durch die aktuellen UI-Werte ersetzt. Andere
+   * Effekte bleiben in ihrer Reihenfolge erhalten.
+   *
+   * @param {string} originalValue Ursprünglicher Transform-String.
+   * @param {number} roundValue Aktueller Radius für round_edges.
+   * @param {string} roundBackgroundColor Hintergrundfarbe für round_edges.
+   * @param {number} shadowValue Aktuelle Breite für drop_shadow.
+   * @param {string} shadowColor Aktuelle Schattenfarbe.
+   * @param {string} shadowBackgroundColor Aktuelle Hintergrundfarbe.
+   * @param {number} shadowFade Aktueller Fade-Wert.
+   * @returns {string} Aktualisierter Transform-String.
+   */
   function buildTransformWithSliders(originalValue, roundValue, roundBackgroundColor, shadowValue, shadowColor, shadowBackgroundColor, shadowFade) {
     const tokens = splitTopLevelExpressions(String(originalValue || ''));
     const nextTokens = [];
@@ -164,6 +267,15 @@ document.addEventListener('DOMContentLoaded', function () {
     return nextTokens.join(',');
   }
 
+  /**
+   * Normalisiert einen Greyscale-Wert auf das Format r,g,b oder none.
+   *
+   * Nur drei Zahlen im Bereich 0 bis 255 oder der Spezialwert none sind
+   * zulässig. Ungültige Werte werden als leerer String zurückgegeben.
+   *
+   * @param {string} value Gewählter Greyscale-Wert aus der UI.
+   * @returns {string} Normalisierter Greyscale-Wert oder ein leerer String.
+   */
   function normalizeGreyscaleValue(value) {
     const raw = String(value || '').trim();
     if (/^none$/i.test(raw)) {
@@ -182,6 +294,17 @@ document.addEventListener('DOMContentLoaded', function () {
     return r + ',' + g + ',' + b;
   }
 
+  /**
+   * Aktualisiert einen Transform-String mit dem gewählten Greyscale-Effekt.
+   *
+   * Vorhandene greyscale-Einträge werden entfernt und durch den aktuell
+   * gewählten Wert ersetzt. Bei none oder ungültigen Werten wird der Effekt
+   * aus dem Transform-String entfernt.
+   *
+   * @param {string} originalValue Ursprünglicher Transform-String.
+   * @param {string} greyscaleValue Neu gewählter Greyscale-Wert.
+   * @returns {string} Aktualisierter Transform-String.
+   */
   function buildTransformWithGreyscale(originalValue, greyscaleValue) {
     const normalized = normalizeGreyscaleValue(greyscaleValue);
     const tokens = splitTopLevelExpressions(String(originalValue || ''));
@@ -210,6 +333,15 @@ document.addEventListener('DOMContentLoaded', function () {
     return nextTokens.join(',');
   }
 
+  /**
+   * Verknüpft Range-Slider mit ihrer sichtbaren Zahlenanzeige.
+   *
+   * Für jedes Element mit data-for wird der zugehörige Slider gesucht und die
+   * aktuelle Zahl bei Änderungen sowie beim Initialisieren in die Ausgabe
+   * übernommen.
+   *
+   * @returns {void}
+   */
   function bindRangeValueDisplay() {
     const outputs = document.querySelectorAll('.range-current[data-for]');
 
@@ -234,6 +366,15 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  /**
+   * Synchronisiert Transform-Felder mit Round-Edges- und Drop-Shadow-Slidern.
+   *
+   * Beim Laden werden vorhandene Transform-Strings in Sliderwerte übersetzt.
+   * Anschließend halten Event-Listener beide Richtungen synchron, damit
+   * Eingabefeld und UI-Regler denselben Effektzustand abbilden.
+   *
+   * @returns {void}
+   */
   function bindSliderTransformSync() {
     const transformInputs = document.querySelectorAll('input[name^="transform_"]');
 
@@ -279,14 +420,14 @@ document.addEventListener('DOMContentLoaded', function () {
         shadowSlider.dispatchEvent(new Event('change'));
       };
 
-      syncSlidersFromTransform();
-
       const syncTransform = function() {
         const roundValue = parseInt(roundSlider.value, 10) || 0;
         const shadowValue = parseInt(shadowSlider.value, 10) || 0;
         const shadowFade = parseInt(shadowFadeSlider.value, 10) || 65;
         transformInput.value = buildTransformWithSliders(transformInput.value, roundValue, roundColorInput.value, shadowValue, shadowColorInput.value, shadowBgColorInput.value, shadowFade);
       };
+
+      syncSlidersFromTransform();
 
       transformInput.addEventListener('input', syncSlidersFromTransform);
       transformInput.addEventListener('change', syncSlidersFromTransform);
@@ -306,6 +447,15 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  /**
+   * Setzt die visuelle Farbvorschau für Greyscale-Auswahllisten.
+   *
+   * Jede Auswahl erhält anhand des gewählten RGB-Werts eine passende
+   * Hintergrundfarbe und eine kontrastreiche Schriftfarbe. Ungültige Werte
+   * setzen die Vorschau auf den Standardzustand zurück.
+   *
+   * @returns {void}
+   */
   function bindGreyscaleSelectColor() {
     const greyscaleSelects = document.querySelectorAll('select[name^="greyscale_"]');
 
@@ -333,6 +483,15 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  /**
+   * Synchronisiert Greyscale-Auswahllisten mit den Transform-Eingabefeldern.
+   *
+   * Beim Ändern einer Selectbox wird der zugehörige Transform-String sofort
+   * aktualisiert, sodass die Greyscale-Konfiguration konsistent gespeichert
+   * werden kann.
+   *
+   * @returns {void}
+   */
   function bindGreyscaleTransformSync() {
     const greyscaleSelects = document.querySelectorAll('select[name^="greyscale_"]');
 
@@ -351,18 +510,30 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  const STORAGE_KEY = 'bxImageMagickActiveTab';
-  const EXPIRATION_MS = 1000 * 60 * 60; // 1 Stunde
-
-  // Funktion zum Aktivieren eines Tabs
+  /**
+   * Aktiviert eine Registerkarte und blendet den zugehörigen Inhalt ein.
+   *
+   * Zusätzlich wird bei der Zielansicht ein change-Event auf das vorhandene
+   * Transform-Feld ausgelöst, damit abhängige UI-Elemente ihren Zustand
+   * unmittelbar aktualisieren können.
+   *
+   * @param {string} tabId CSS-Selektor beziehungsweise href-Ziel des Tabs.
+   * @returns {void}
+   */
   function activateTab(tabId) {
-    // Navigation
-    tabs.forEach(t => t.classList.remove('active'));
-    const activeTab = document.querySelector(`.magick-tabs .tab-nav a[href="${tabId}"]`);
-    if (activeTab) activeTab.classList.add('active');
+    tabs.forEach(function(tab) {
+      tab.classList.remove('active');
+    });
 
-    // Inhalte
-    contents.forEach(c => c.classList.remove('active'));
+    const activeTab = document.querySelector(`.magick-tabs .tab-nav a[href="${tabId}"]`);
+    if (activeTab) {
+      activeTab.classList.add('active');
+    }
+
+    contents.forEach(function(content) {
+      content.classList.remove('active');
+    });
+
     const target = document.querySelector(tabId);
     if (target) {
       target.classList.add('active');
@@ -374,14 +545,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Klick-Handler
-  tabs.forEach(tab => {
-    tab.addEventListener('click', function (e) {
-      e.preventDefault();
+  tabs.forEach(function(tab) {
+    tab.addEventListener('click', function(event) {
+      event.preventDefault();
       const tabId = this.getAttribute('href');
       activateTab(tabId);
 
-      // Tab + Timestamp speichern
       const data = {
         tabId: tabId,
         timestamp: Date.now()
@@ -390,30 +559,25 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // Letzten Tab beim Laden wiederherstellen (nur wenn noch gültig)
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored) {
     try {
       const data = JSON.parse(stored);
       if (Date.now() - data.timestamp < EXPIRATION_MS) {
-        // noch gültig
         activateTab(data.tabId);
       } else {
-        // abgelaufen -> löschen und ersten Tab aktivieren
         localStorage.removeItem(STORAGE_KEY);
         if (tabs.length > 0) {
           activateTab(tabs[0].getAttribute('href'));
         }
       }
-    } catch (e) {
-      // falls JSON ungültig -> reset
+    } catch (error) {
       localStorage.removeItem(STORAGE_KEY);
       if (tabs.length > 0) {
         activateTab(tabs[0].getAttribute('href'));
       }
     }
   } else if (tabs.length > 0) {
-    // Standard: Ersten aktivieren
     activateTab(tabs[0].getAttribute('href'));
   }
 
@@ -421,15 +585,27 @@ document.addEventListener('DOMContentLoaded', function () {
   bindRangeValueDisplay();
   bindGreyscaleSelectColor();
   bindGreyscaleTransformSync();
+}
 
-});
-
-$(document).ready(function() {
+/**
+ * Blendet die feste Message-Stack-Box kurz ein und automatisch wieder aus.
+ *
+ * Diese kleine Komfortfunktion sorgt dafür, dass Statusmeldungen nach dem
+ * Laden sichtbar sind, aber den Adminbereich nach kurzer Zeit wieder freigeben.
+ *
+ * @returns {void}
+ */
+function autoHideFixedMessageStack() {
   $(".fixed_messageStack").slideDown("slow", function() {
-    setTimeout(function() { $(".fixed_messageStack").slideUp("slow"); }, 2000); 
+    setTimeout(function() {
+      $(".fixed_messageStack").slideUp("slow");
+    }, 2000);
   });
-});
+}
+
+document.addEventListener('DOMContentLoaded', initializeBxImageMagickAdmin);
+$(document).ready(autoHideFixedMessageStack);
 </script>
 <?php
- }
+  }
 ?>

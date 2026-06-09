@@ -1,6 +1,7 @@
 <?php
 /**
  * Deutsche Sprachdatei für das Systemmodul bx_image_magick.
+ * \lang\german\modules\system\bx_image_magick.php
  *
  * Diese Datei definiert die deutschen Modultexte für die Konfiguration,
  * Installationshinweise und Fehlermeldungen im modified-Adminbereich.
@@ -8,11 +9,9 @@
  * @file        bx_image_magick.php
  * @package     bx-image-magick
  * @author      bx-codemaster (benax)
- * @idea        modulfux (Ideengeber)
- * @copyright   modulfux
+ * @website     www.bx-coding.de
  * @license     GNU General Public License (GPL)
- * @since       2018-06-04
- * @date				2026-06-02
+ * @since       2026-06-10
  */
 
 define('MODULE_BX_IMAGE_MAGICK_TITLE', 'BX Image Magick - <span style="font-weight: normal;">Bildbearbeitung mit ImageMagick</span>');

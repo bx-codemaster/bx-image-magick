@@ -14,8 +14,6 @@
  * 
  * Released under the GNU General Public License
  * --------------------------------------------------------------
- * Unter Mitwirkung von CADDY entwickelt
- * CADDY: Computer-Aided Development & Deployment Yield (AI)
  */
 
 require ('includes/application_top.php');
@@ -59,16 +57,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'save' && isset($_POST['save_i
   $skipped = 0;
 
   foreach ($imageSizeTabs as $tab) {
-    $mergeKey = $tab['merge_const'];
+    $mergeKey     = $tab['merge_const'];
     $transformKey = $tab['transform_const'];
 
-    $mergeInputName = 'merge_' . $tab['id'];
-    $transformInputName = 'transform_' . $tab['id'];
-    $greyscaleInputName = 'greyscale_' . $tab['id'];
-    $roundEdgesInputName = 'round_edges_' . $tab['id'];
-    $roundEdgesColorInputName = 'round_edges_color_' . $tab['id'];
-    $dropShadowInputName = 'drop_shadow_' . $tab['id'];
-    $dropShadowColorInputName = 'drop_shadow_color_' . $tab['id'];
+    $mergeInputName             = 'merge_' . $tab['id'];
+    $transformInputName         = 'transform_' . $tab['id'];
+    $greyscaleInputName         = 'greyscale_' . $tab['id'];
+    $roundEdgesInputName        = 'round_edges_' . $tab['id'];
+    $roundEdgesColorInputName   = 'round_edges_color_' . $tab['id'];
+    $dropShadowInputName        = 'drop_shadow_' . $tab['id'];
+    $dropShadowColorInputName   = 'drop_shadow_color_' . $tab['id'];
     $dropShadowBgColorInputName = 'drop_shadow_bg_color_' . $tab['id'];
 
     $mergeValue = isset($_POST[$mergeInputName]) ? trim((string)$_POST[$mergeInputName]) : '';
@@ -114,10 +112,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'save' && isset($_POST['save_i
   }
 
   if ($updated > 0) {
-    $messageStack->add_session('BX Image Magick Einstellungen gespeichert.', 'success');
+    $messageStack->add_session(TEXT_BX_IMAGE_MAGICK_MESSAGE_SETTINGS_SAVED, 'success');
   }
   if ($skipped > 0) {
-    $messageStack->add_session('Ungültige Transform-Strings wurden geleert.', 'warning');
+    $messageStack->add_session(TEXT_BX_IMAGE_MAGICK_MESSAGE_INVALID_TRANSFORMS_RESET, 'warning');
   }
 
   xtc_redirect(xtc_href_link(FILENAME_BX_IMAGE_MAGICK));

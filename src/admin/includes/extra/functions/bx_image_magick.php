@@ -1,9 +1,44 @@
 <?php
+/**
+ * Hilfsfunktionen für die Admin-Konfiguration von bx_image_magick.
+ *
+ * Diese Datei bündelt Parser-, Normalisierungs- und Persistenzhelfer für
+ * Transform-Strings der Bildbearbeitung im Adminbereich. Die Funktionen sind
+ * bewusst zustandslos gehalten, damit sie sowohl in Modulquellen als auch in
+ * der gespiegelten Live-Datei identisch verwendet werden können.
+ *
+ * @file        bx_image_magick.php
+ * @package     bx-image-magick
+ * @author      bx-codemaster (benax)
+ * @website     www.bx-coding.de
+ * @license     GNU General Public License (GPL)
+ * @since       2026-06-10
+ */
 
+/**
+ * Liest den Wert einer definierten Konstante und gibt ihn als String zurück.
+ *
+ * Die Funktion wird als kleiner Adapter für dynamische Konfigurationsschlüssel
+ * verwendet, wenn Konstantennamen erst zur Laufzeit feststehen.
+ *
+ * @param string $key Name der bereits definierten Konstante.
+ * @return string String-Repräsentation des Konstantenwerts.
+ */
 function bx_imagemagick_const_value(string $key): string {
 	return (string)constant($key);
 }
 
+/**
+ * Bereinigt und validiert einen kompletten Transform-String für die Admin-UI.
+ *
+ * Leere Eingaben werden verworfen, die Länge wird auf 512 Zeichen begrenzt und
+ * es bleiben nur Zeichen erhalten, die für den internen Transform-Parser
+ * relevant sind. Enthält der String andere Zeichen, wird ein leerer String
+ * zurückgegeben, um ungültige Konfigurationen nicht weiterzuverarbeiten.
+ *
+ * @param string $value Rohwert aus Formular, Konfiguration oder Vorschau.
+ * @return string Validierter Transform-String oder ein leerer String.
+ */
 function bx_imagemagick_normalize_transform(string $value): string {
 	$value = trim($value);
 	if ($value === '') {
@@ -22,6 +57,16 @@ function bx_imagemagick_normalize_transform(string $value): string {
 	return $value;
 }
 
+/**
+ * Normalisiert einen Greyscale-Tripelwert im Format r,g,b.
+ *
+ * Erlaubt entweder den Spezialwert none oder drei Ganzzahlen, die anschließend
+ * auf den Bereich 0 bis 255 begrenzt werden. Ungültige Eingaben werden mit
+ * einem leeren String quittiert.
+ *
+ * @param string $value Eingabewert wie 120,140,160 oder none.
+ * @return string Normalisierter Tripelwert, none oder ein leerer String.
+ */
 function bx_imagemagick_normalize_greyscale_triplet(string $value): string {
 	$value = trim($value);
 	if ($value === '') {
@@ -43,6 +88,17 @@ function bx_imagemagick_normalize_greyscale_triplet(string $value): string {
 	return $r . ',' . $g . ',' . $b;
 }
 
+/**
+ * Normalisiert eine Hex-Farbe auf das Format RRGGBB ohne führendes #.
+ *
+ * Drei- und sechsstellige Farbwerte werden akzeptiert. Dreistellige Werte
+ * werden auf sechs Stellen expandiert. Bei leerer oder ungültiger Eingabe wird
+ * der angegebene Fallback unverändert zurückgegeben.
+ *
+ * @param string $value Rohwert der Farbe, optional mit führendem #.
+ * @param string $fallback Rückgabewert bei ungültiger Eingabe.
+ * @return string Normalisierte Hex-Farbe oder der Fallback.
+ */
 function bx_imagemagick_normalize_hex_color(string $value, string $fallback = ''): string {
 	$value = trim($value);
 	if ($value === '') {
@@ -61,6 +117,16 @@ function bx_imagemagick_normalize_hex_color(string $value, string $fallback = ''
 	return $hex;
 }
 
+/**
+ * Trennt einen Transform-String an Top-Level-Kommas in einzelne Tokens.
+ *
+ * Kommas innerhalb von Klammern oder innerhalb quotierter Strings bleiben
+ * erhalten. Dadurch können verschachtelte Effekte oder Stringargumente sicher
+ * zerlegt werden, ohne die syntaktische Struktur zu beschädigen.
+ *
+ * @param string $value Kommagetrennter Transform-String.
+ * @return array<int, string> Liste der obersten Transform-Tokens ohne Leerwerte.
+ */
 function bx_imagemagick_split_top_level(string $value): array {
 	$parts = array();
 	$buffer = '';
@@ -121,6 +187,17 @@ function bx_imagemagick_split_top_level(string $value): array {
 	return $parts;
 }
 
+/**
+ * Fügt einen Greyscale-Effekt in einen Transform-String ein oder ersetzt ihn.
+ *
+ * Vorhandene greyscale()-Einträge werden entfernt und durch den neuen Wert an
+ * derselben Position ersetzt. Die Spezialwerte none und 0,0,0 entfernen den
+ * Effekt vollständig aus der Transform-Kette.
+ *
+ * @param string $transform Bestehender Transform-String.
+ * @param string $triplet Neuer Greyscale-Tripelwert oder none.
+ * @return string Aktualisierter Transform-String ohne Duplikate.
+ */
 function bx_imagemagick_upsert_greyscale_transform(string $transform, string $triplet): string {
 	if (trim($triplet) === '0,0,0' || strcasecmp(trim($triplet), 'none') === 0) {
 		$triplet = '';
@@ -151,6 +228,16 @@ function bx_imagemagick_upsert_greyscale_transform(string $transform, string $tr
 	return implode(',', $next);
 }
 
+/**
+ * Liest den ersten Greyscale-Tripelwert aus einem Transform-String aus.
+ *
+ * Wird kein gültiger greyscale()-Aufruf gefunden oder ist dessen Inhalt nicht
+ * verwertbar, liefert die Funktion den übergebenen Fallback zurück.
+ *
+ * @param string $transform Vollständiger Transform-String.
+ * @param string $fallback Rückgabewert, wenn kein gültiger Tripelwert gefunden wird.
+ * @return string Normalisierter Greyscale-Tripelwert oder der Fallback.
+ */
 function bx_imagemagick_extract_greyscale_triplet(string $transform, string $fallback = 'none'): string {
 	if (preg_match('/greyscale\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/i', $transform, $matches)) {
 		$normalized = bx_imagemagick_normalize_greyscale_triplet($matches[1] . ',' . $matches[2] . ',' . $matches[3]);
@@ -164,6 +251,18 @@ function bx_imagemagick_extract_greyscale_triplet(string $transform, string $fal
 	return $fallback;
 }
 
+/**
+ * Extrahiert Radius und Hintergrundfarbe eines round_edges()-Effekts.
+ *
+ * Die Funktion akzeptiert optionale Fallback-Werte und gibt immer eine
+ * vollständige Konfiguration zurück. Der Radius wird niemals negativ, die
+ * Hintergrundfarbe immer als normalisierte Hex-Farbe geliefert.
+ *
+ * @param string $transform Vollständiger Transform-String.
+ * @param int $fallbackRadius Fallback-Radius, wenn kein Effekt vorhanden ist.
+ * @param string $fallbackBackgroundColor Fallback-Farbe für transparente Bereiche.
+ * @return array{radius:int,background_color:string} Normalisierte Effektkonfiguration.
+ */
 function bx_imagemagick_extract_round_edges_values(string $transform, int $fallbackRadius = 0, string $fallbackBackgroundColor = 'FFFFFF'): array {
 	$fallbackBackgroundColor = bx_imagemagick_normalize_hex_color($fallbackBackgroundColor, 'FFFFFF');
 
@@ -183,6 +282,18 @@ function bx_imagemagick_extract_round_edges_values(string $transform, int $fallb
 	);
 }
 
+/**
+ * Fügt einen round_edges()-Effekt ein oder ersetzt einen vorhandenen Eintrag.
+ *
+ * Bestehende round_edges()-Tokens werden entfernt und bei positivem Radius an
+ * der bisherigen Position neu eingesetzt. Ist der Radius 0 oder kleiner, wird
+ * der Effekt vollständig aus dem Transform-String entfernt.
+ *
+ * @param string $transform Bestehender Transform-String.
+ * @param int $radius Gewünschter Radius für abgerundete Ecken.
+ * @param string $backgroundColor Hintergrundfarbe für Formate ohne Alpha-Fläche.
+ * @return string Aktualisierter Transform-String.
+ */
 function bx_imagemagick_upsert_round_edges_transform(string $transform, int $radius, string $backgroundColor): string {
 	$tokens = bx_imagemagick_split_top_level(trim($transform));
 	$next = array();
@@ -211,6 +322,20 @@ function bx_imagemagick_upsert_round_edges_transform(string $transform, int $rad
 	return implode(',', $next);
 }
 
+/**
+ * Extrahiert die Konfiguration eines drop_shadow()-Effekts aus dem Transform.
+ *
+ * Neben Breite und Farben wird auch der optionale Fade-Wert eingelesen und auf
+ * den unterstützten Bereich 20 bis 100 begrenzt. Die Rückgabe enthält immer
+ * eine vollständige und normalisierte Konfiguration.
+ *
+ * @param string $transform Vollständiger Transform-String.
+ * @param int $fallbackWidth Fallback-Breite, wenn kein Effekt gefunden wird.
+ * @param string $fallbackShadowColor Fallback-Farbe des Schattens.
+ * @param string $fallbackBackgroundColor Fallback-Hintergrundfarbe.
+ * @param int $fallbackFade Fallback-Intensität für den Schattenverlauf.
+ * @return array{width:int,shadow_color:string,background_color:string,fade:int} Normalisierte Schattenkonfiguration.
+ */
 function bx_imagemagick_extract_drop_shadow_values(string $transform, int $fallbackWidth = 0, string $fallbackShadowColor = '000000', string $fallbackBackgroundColor = 'FFFFFF', int $fallbackFade = 65): array {
 	$fallbackShadowColor = bx_imagemagick_normalize_hex_color($fallbackShadowColor, '000000');
 	$fallbackBackgroundColor = bx_imagemagick_normalize_hex_color($fallbackBackgroundColor, 'FFFFFF');
@@ -238,6 +363,21 @@ function bx_imagemagick_extract_drop_shadow_values(string $transform, int $fallb
 	);
 }
 
+/**
+ * Fügt einen drop_shadow()-Effekt ein oder ersetzt einen vorhandenen Eintrag.
+ *
+ * Die Funktion entfernt zuerst alle existierenden drop_shadow()-Tokens. Ist die
+ * Breite positiv, wird ein einzelner normalisierter Eintrag mit Schattenfarbe,
+ * Hintergrundfarbe und Fade-Wert eingefügt. Andernfalls wird der Effekt aus
+ * der Transform-Kette entfernt.
+ *
+ * @param string $transform Bestehender Transform-String.
+ * @param int $width Breite des Schatteneffekts.
+ * @param string $shadowColor Schattenfarbe als Hex-Wert.
+ * @param string $backgroundColor Hintergrundfarbe für transparente Zielbereiche.
+ * @param int $fade Verlauf des Schattens im Bereich 20 bis 100.
+ * @return string Aktualisierter Transform-String.
+ */
 function bx_imagemagick_upsert_drop_shadow_transform(string $transform, int $width, string $shadowColor, string $backgroundColor, int $fade = 65): string {
 	$tokens = bx_imagemagick_split_top_level(trim($transform));
 	$next = array();
@@ -268,6 +408,18 @@ function bx_imagemagick_upsert_drop_shadow_transform(string $transform, int $wid
 	return implode(',', $next);
 }
 
+/**
+ * Speichert einen Konfigurationswert in der modified-Konfigurationstabelle.
+ *
+ * Die Funktion escaped Schlüssel und Wert über xtc_db_input() und führt ein
+ * einfaches UPDATE gegen TABLE_CONFIGURATION aus. Sie erwartet, dass der
+ * Konfigurationsschlüssel bereits existiert; ein Upsert erfolgt hier bewusst
+ * nicht.
+ *
+ * @param string $key Konfigurationsschlüssel in TABLE_CONFIGURATION.
+ * @param string $value Zu speichernder Konfigurationswert.
+ * @return bool True nach Ausführen des Updates, sonst false bei fehlender Tabellenkonstante.
+ */
 function bx_imagemagick_save_configuration(string $key, string $value): bool {
 	if (!defined('TABLE_CONFIGURATION')) {
 		return false;

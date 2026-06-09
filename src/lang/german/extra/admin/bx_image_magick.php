@@ -1,14 +1,18 @@
 <?php
-/* -----------------------------------------------------------------------------------------
-	$Id: /lang/german/extra/admin/bx_image_magick.php 1000 2026-06-03 12:00:00Z benax $
-	
-	modified eCommerce Shopsoftware
-	http://www.modified-shop.org
-	
-	Copyright (c) 2009 - 2013 [www.modified-shop.org]
-	-----------------------------------------------------------------------------------------
-	Released under the GNU General Public License
-	---------------------------------------------------------------------------------------*/
+/**
+ * Deutsche Sprachdatei für das Systemmodul bx_image_magick.
+ * \lang\german\extra\admin\bx_image_magick.php
+ *
+ * Diese Datei definiert die deutschen Modultexte für die Konfiguration,
+ * Installationshinweise und Fehlermeldungen im modified-Adminbereich.
+ *
+ * @file        bx_image_magick.php
+ * @package     bx-image-magick
+ * @author      bx-codemaster (benax)
+ * @website     www.bx-coding.de
+ * @license     GNU General Public License (GPL)
+ * @since       2026-06-10
+ */
 	
 define('BX_IMAGE_MAGICK_TITLE', 'BX Image Magick');
 define('BX_IMAGE_MAGICK_DESCRIPTION', 'Modul zur Bildbearbeitung mit ImageMagick, einschließlich Unterstützung von ICC-Farbprofilen für CMYK- und RGB-Konvertierungen.');
@@ -48,3 +52,5 @@ define('TEXT_BX_IMAGE_MAGICK_RUN_IMAGE_PROCESSING', 'Bilder neu erzeugen');
 define('TEXT_BX_IMAGE_MAGICK_PREVIEW_PANEL', 'Vorschau');
 define('TEXT_BX_IMAGE_MAGICK_PREVIEW_HINT', 'Hier erscheint später die Live-Vorschau für den aktuell gewählten Größen-Tab.');
 define('TEXT_BX_IMAGE_MAGICK_PREVIEW_PLACEHOLDER', 'Noch keine Vorschau geladen');
+define('TEXT_BX_IMAGE_MAGICK_MESSAGE_SETTINGS_SAVED', 'BX Image Magick Einstellungen gespeichert.');
+define('TEXT_BX_IMAGE_MAGICK_MESSAGE_INVALID_TRANSFORMS_RESET', 'Ungültige Transform-Strings wurden geleert.');
