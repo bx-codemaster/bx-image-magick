@@ -27,10 +27,13 @@ define('TEXT_BX_IMAGE_MAGICK_FUNCTIONS_INTRO', 'Planned effect options: bevel, g
 define('TEXT_BX_IMAGE_MAGICK_SUPPORT_INTRO', 'Support and diagnostic functions will be added step by step.');
 define('TEXT_BX_IMAGE_MAGICK_IMAGE_TAB_INTRO', 'Configure merge and effect options for this image size.');
 define('TEXT_BX_IMAGE_MAGICK_FIELD_MERGE_STRING', 'Merge string');
-define('TEXT_BX_IMAGE_MAGICK_FIELD_EFFECT_ORDER', 'Effect order (transform string)');
+define('TEXT_BX_IMAGE_MAGICK_FIELD_EFFECT_ORDER', 'Effect order');
 define('TEXT_BX_IMAGE_MAGICK_FIELD_ROUND_EDGES', 'Round edges radius');
-define('TEXT_BX_IMAGE_MAGICK_FIELD_DROP_SHADOW', 'Drop shadow width');
+define('TEXT_BX_IMAGE_MAGICK_FIELD_DROP_SHADOW', 'Drop shadow');
+define('TEXT_BX_IMAGE_MAGICK_FIELD_DROP_SHADOW_FADE', 'Drop shadow fade');
 define('TEXT_BX_IMAGE_MAGICK_FIELD_GREYSCALE', 'Greyscale (r,g,b)');
+define('TEXT_BX_IMAGE_MAGICK_DROP_SHADOW_COLOR_HINT', 'Shadow color defines the shadow itself. Background color is only used for JPG/JPEG as the fill color for transparent areas.');
+define('TEXT_BX_IMAGE_MAGICK_DROP_SHADOW_FADE_HINT', 'Note: Smaller fade values create a more compact shadow with an earlier falloff. Larger fade values extend the gradient and let the shadow transition more softly into transparency.');
 define('TEXT_BX_IMAGE_MAGICK_ACTION_SAVE', 'Save');
 define('TEXT_BX_IMAGE_MAGICK_ACTION_PREVIEW', 'Generate preview');
 define('TEXT_BX_IMAGE_MAGICK_SUPPORT_HINT_1', 'Planned: live preview with temporary files (tmp).');

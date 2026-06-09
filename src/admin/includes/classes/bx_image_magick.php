@@ -28,21 +28,21 @@ class image_manipulation {
 
   /** @var string|null */
   public ?string $resource_file = null;
+   
+  /** @var int|null */
+  public ?int $max_width = null; 
 
-  /** @var string|null */
-  public ?string $transform = null;
+  /** @var int|null */
+  public ?int $max_height = null;
   
   /** @var string|null */
   public ?string $destination_file = null;
   
   /** @var int|null */
   public ?int $compression = null;
-  
-  /** @var int|null */
-  public ?int $max_width = null;
-  
-  /** @var int|null */
-  public ?int $max_height = null;
+
+  /** @var string|null */
+  public ?string $transform = null;
   
   /** @var array<int, array<string, mixed>> */
   public array $merge_data = array();
@@ -59,6 +59,9 @@ class image_manipulation {
   /** @var bool */
   protected bool $webpWrittenInCreate = false;
 
+  /** @var string */
+  protected string $jpegFlattenBackgroundColor = '#FFFFFF';
+
   /**
    * __construct
    *
@@ -72,15 +75,16 @@ class image_manipulation {
    */
   function __construct($resource_file, $max_width, $max_height, $destination_file = '', $compression = null, $transform = '') {
     $this->resource_file    = $resource_file;
-    $this->transform        = $transform;
+    $this->max_width        = (int)$max_width;
+    $this->max_height       = (int)$max_height;
     $this->destination_file = $destination_file;
 
     if ($compression === null) {
       $compression = defined('IMAGE_QUALITY') ? (int)IMAGE_QUALITY : 85;
     }
+    
     $this->compression      = (int)$compression;
-    $this->max_width        = (int)$max_width;
-    $this->max_height       = (int)$max_height;
+    $this->transform        = $transform;
 
     if ($this->transform === null || trim((string)$this->transform) === '') {
       $this->transform = $this->resolveAutoTransformForDestination((string)$this->destination_file);
@@ -144,6 +148,7 @@ class image_manipulation {
     }
 
     $this->webpWrittenInCreate = false;
+    $this->jpegFlattenBackgroundColor = '#FFFFFF';
 
     $img = $this->createImagickInstance();
     try {
@@ -171,55 +176,15 @@ class image_manipulation {
         $this->convertCmykToRgb($img);
       }
 
-      if ($this->transform !== '') {
-        $this->manipulate();
-      }
+      // Interne Verarbeitung immer mit Alpha-Pipeline (RGBA), finales Flattening erst je nach Zielformat.
+      $this->prepareImageForAlphaPipeline($img);
 
-      if (!empty($this->effects_queue)) {
-        $this->applyEffectOperations($img);
-      }
-
-      if (!empty($this->merge_data)) {
-        $this->applyMergeOperations($img);
-      }
+      $this->runProcessingPipeline($img);
 
       $this->image_type = $this->detectImageType($img, $this->destination_file);
-      $write_target = $this->destination_file;
+      $write_target = $this->configureOutputFormatPolicy($img, $this->image_type, $this->destination_file);
 
-      if ($this->image_type == IMAGETYPE_JPEG) {
-        $img->setImageBackgroundColor('#FFFFFF');
-        $flattened = $img->mergeImageLayers($this->imagickConst('LAYERMETHOD_FLATTEN', 11));
-        if ($flattened instanceof Imagick) {
-          $img->clear();
-          $img->destroy();
-          $img = $flattened;
-        }
-        $img->setSamplingFactors(array('2x2', '1x1', '1x1'));
-        $img->setInterlaceScheme(Imagick::INTERLACE_PLANE);
-        $img->setImageFormat('jpeg');
-        $img->setImageCompression($this->imagickConst('COMPRESSION_JPEG', 8));
-        $write_target = 'jpeg:' . $this->destination_file;
-      } elseif ($this->image_type == IMAGETYPE_PNG) {
-        $img->setImageFormat('png');
-        $img->setImageBackgroundColor($this->createImagickPixelInstance('transparent'));
-        $img->setImageAlphaChannel($this->imagickConst('ALPHACHANNEL_SET', 1));
-        $img->setImageCompression($this->imagickConst('COMPRESSION_ZIP', 14));
-        $write_target = 'png:' . $this->destination_file;
-      } elseif ($this->isImageTypeWebp($this->image_type)) {
-        $img->setImageFormat('webp');
-        $write_target = 'webp:' . $this->destination_file;
-      } elseif ($this->isImageTypeAvif($this->image_type)) {
-        $img->setImageFormat('avif');
-        $write_target = 'avif:' . $this->destination_file;
-      } else {
-        $img->setImageFormat('gif');
-        $write_target = 'gif:' . $this->destination_file;
-      }
-
-      $this->applySharpen($img, $this->image_type);
-
-      $img->setImageCompressionQuality($this->normalizeQuality($this->compression));
-      $img->stripImage();
+      $this->finalizeImageForWrite($img, $this->image_type);
 
       $dir = dirname($this->destination_file);
       if (!$this->ensureDirectoryExists($dir, __METHOD__, (string)$this->destination_file)) {
@@ -238,6 +203,87 @@ class image_manipulation {
       $img->clear();
       $img->destroy();
       $this->cleanupTemporarySource();
+    }
+  }
+
+  /**
+   * @param object $img
+   * @return void
+   */
+  protected function runProcessingPipeline(&$img) {
+    if ($this->transform !== '') {
+      $this->manipulate();
+    }
+
+    if (!empty($this->effects_queue)) {
+      $this->applyEffectOperations($img);
+    }
+
+    if (!empty($this->merge_data)) {
+      $this->applyMergeOperations($img);
+    }
+
+    if (method_exists($img, 'setImagePage')) {
+      $img->setImagePage(0, 0, 0, 0);
+    }
+  }
+
+  /**
+   * @param object $img
+   * @param int $imageType
+   * @param string $destination
+   * @return string
+   */
+  protected function configureOutputFormatPolicy(&$img, $imageType, $destination) {
+    $writeTarget = (string)$destination;
+
+    if ((int)$imageType === IMAGETYPE_JPEG) {
+      $img->setImageBackgroundColor($this->createImagickPixelInstance($this->jpegFlattenBackgroundColor));
+      $flattened = $img->mergeImageLayers($this->imagickConst('LAYERMETHOD_FLATTEN', 11));
+      if (is_object($flattened) && method_exists($flattened, 'clear') && method_exists($flattened, 'destroy')) {
+        $img->clear();
+        $img->destroy();
+        $img = $flattened;
+      }
+      $img->setSamplingFactors(array('2x2', '1x1', '1x1'));
+      $img->setInterlaceScheme($this->imagickConst('INTERLACE_PLANE', 4));
+      $img->setImageFormat('jpeg');
+      $img->setImageCompression($this->imagickConst('COMPRESSION_JPEG', 8));
+      $writeTarget = 'jpeg:' . (string)$destination;
+    } elseif ((int)$imageType === IMAGETYPE_PNG) {
+      $img->setImageFormat('png');
+      $img->setImageBackgroundColor($this->createImagickPixelInstance('transparent'));
+      $img->setImageAlphaChannel($this->imagickConst('ALPHACHANNEL_SET', 1));
+      $img->setImageCompression($this->imagickConst('COMPRESSION_ZIP', 14));
+      $writeTarget = 'png:' . (string)$destination;
+    } elseif ($this->isImageTypeWebp($imageType)) {
+      $img->setImageFormat('webp');
+      $img->setImageAlphaChannel($this->imagickConst('ALPHACHANNEL_SET', 1));
+      $writeTarget = 'webp:' . (string)$destination;
+    } elseif ($this->isImageTypeAvif($imageType)) {
+      $img->setImageFormat('avif');
+      $img->setImageAlphaChannel($this->imagickConst('ALPHACHANNEL_SET', 1));
+      $writeTarget = 'avif:' . (string)$destination;
+    } else {
+      $img->setImageFormat('gif');
+      $img->setImageAlphaChannel($this->imagickConst('ALPHACHANNEL_SET', 1));
+      $writeTarget = 'gif:' . (string)$destination;
+    }
+
+    return $writeTarget;
+  }
+
+  /**
+   * @param object $img
+   * @param int $imageType
+   * @return void
+   */
+  protected function finalizeImageForWrite($img, $imageType) {
+    $this->applySharpen($img, $imageType);
+    $img->setImageCompressionQuality($this->normalizeQuality($this->compression));
+    $img->stripImage();
+    if (method_exists($img, 'setImagePage')) {
+      $img->setImagePage(0, 0, 0, 0);
     }
   }
 
@@ -306,7 +352,7 @@ class image_manipulation {
    * @param int $bv
    * @return void
    */
-  public function greyscale($rv = 38, $gv = 36, $bv = 26) {
+  public function greyscale($rv = 0, $gv = 0, $bv = 0) {
     $this->effects_queue[] = array(
       'name' => 'greyscale',
       'args' => array((int)$rv, (int)$gv, (int)$bv),
@@ -354,13 +400,13 @@ class image_manipulation {
   /**
    * @param int $shadow_width
    * @param string $shadow_colour
-   * @param string $background_colour
+   * @param string $shadow_backgroundcolor
    * @return void
    */
-  public function drop_shadow($shadow_width, $shadow_colour = '000000', $background_colour = 'FFFFFF') {
+  public function drop_shadow($shadow_width, $shadow_colour = '000000', $shadow_backgroundcolor = 'FFFFFF') {
     $this->effects_queue[] = array(
       'name' => 'drop_shadow',
-      'args' => array((int)$shadow_width, (string)$shadow_colour, (string)$background_colour),
+      'args' => array((int)$shadow_width, (string)$shadow_colour, (string)$shadow_backgroundcolor),
     );
   }
 
@@ -480,6 +526,24 @@ class image_manipulation {
    * @return int
    */
   protected function detectImageType($img, $destination) {
+    $ext = strtolower((string)pathinfo($destination, PATHINFO_EXTENSION));
+
+    if ($ext === 'png') {
+      return IMAGETYPE_PNG;
+    }
+    if ($ext === 'gif') {
+      return IMAGETYPE_GIF;
+    }
+    if ($ext === 'webp' && defined('IMAGETYPE_WEBP')) {
+      return IMAGETYPE_WEBP;
+    }
+    if ($ext === 'avif' && defined('IMAGETYPE_AVIF')) {
+      return IMAGETYPE_AVIF;
+    }
+    if ($ext === 'jpg' || $ext === 'jpeg' || $ext === 'jpe') {
+      return IMAGETYPE_JPEG;
+    }
+
     $fmt = strtolower((string)$img->getImageFormat());
     if (strpos($fmt, 'png') === 0) {
       return IMAGETYPE_PNG;
@@ -495,21 +559,6 @@ class image_manipulation {
     }
     if (strpos($fmt, 'jpg') === 0 || strpos($fmt, 'jpeg') === 0 || strpos($fmt, 'jpe') === 0) {
       return IMAGETYPE_JPEG;
-    }
-
-    $ext = strtolower((string)pathinfo($destination, PATHINFO_EXTENSION));
-
-    if ($ext === 'png') {
-      return IMAGETYPE_PNG;
-    }
-    if ($ext === 'gif') {
-      return IMAGETYPE_GIF;
-    }
-    if ($ext === 'webp' && defined('IMAGETYPE_WEBP')) {
-      return IMAGETYPE_WEBP;
-    }
-    if ($ext === 'avif' && defined('IMAGETYPE_AVIF')) {
-      return IMAGETYPE_AVIF;
     }
 
     return IMAGETYPE_JPEG;
@@ -530,7 +579,10 @@ class image_manipulation {
 
       try {
         if ($name === 'greyscale') {
-          $img->setImageColorspace($this->imagickConst('COLORSPACE_GRAY', 2));
+          $rv = isset($args[0]) ? (int)$args[0] : 0;
+          $gv = isset($args[1]) ? (int)$args[1] : 0;
+          $bv = isset($args[2]) ? (int)$args[2] : 0;
+          $this->applyWeightedGreyscale($img, $rv, $gv, $bv);
           continue;
         }
 
@@ -548,22 +600,11 @@ class image_manipulation {
         }
 
         if ($name === 'drop_shadow') {
-          $shadow_width = isset($args[0]) ? max(1, (int)$args[0]) : 3;
-          $opacity      = max(10, min(80, 80 - ($shadow_width * 5)));
-          $shadow       = $img->shadowImage($opacity, $shadow_width, $shadow_width, $shadow_width);
-
-          $base = $this->createImagickInstance();
-          
-          $base->newImage($shadow->getImageWidth(), $shadow->getImageHeight(), $this->createImagickPixelInstance('transparent'));
-          $base->setImageFormat($img->getImageFormat());
-          $base->compositeImage($shadow, $this->imagickConst('COMPOSITE_OVER', 40), 0, 0);
-          $base->compositeImage($img, $this->imagickConst('COMPOSITE_OVER', 40), 0, 0);
-          
-          $img->clear();
-          $img->destroy();
-          $img = $base;
-          $shadow->clear();
-          $shadow->destroy();
+          $shadowColor = $this->normalizeHexColor(isset($args[1]) ? (string)$args[1] : '', '#000000');
+          $this->registerJpegBackgroundColor(isset($args[2]) ? (string)$args[2] : '');
+          $shadowWidth = isset($args[0]) ? max(1, (int)$args[0]) : 3;
+          $shadowFade = isset($args[3]) ? max(20, min(100, (int)$args[3])) : 65;
+          $this->applyDropShadowEffect($img, $shadowWidth, $shadowColor, $shadowFade);
           continue;
         }
 
@@ -574,6 +615,11 @@ class image_manipulation {
         }
 
         if ($name === 'ellipse' || $name === 'round_edges') {
+          if ($name === 'ellipse') {
+            $this->registerJpegBackgroundColor(isset($args[0]) ? (string)$args[0] : '');
+          } else {
+            $this->registerJpegBackgroundColor(isset($args[1]) ? (string)$args[1] : '');
+          }
           $this->applyRoundedMask($img, $name === 'round_edges' ? (isset($args[0]) ? max(1, (int)$args[0]) : 3) : 99999);
           continue;
         }
@@ -581,6 +627,44 @@ class image_manipulation {
         $this->logImagickException($e, __METHOD__, (string)$name);
         continue;
       }
+    }
+  }
+
+  /**
+   * @param object $img
+   * @param int $rv
+   * @param int $gv
+   * @param int $bv
+   * @return void
+   */
+  protected function applyWeightedGreyscale($img, $rv = 0, $gv = 0, $bv = 0) {
+    $rWeight = max(0, (int)$rv);
+    $gWeight = max(0, (int)$gv);
+    $bWeight = max(0, (int)$bv);
+
+    $sum = $rWeight + $gWeight + $bWeight;
+    if ($sum <= 0) {
+      return;
+    }
+
+    $wr = $rWeight / $sum;
+    $wg = $gWeight / $sum;
+    $wb = $bWeight / $sum;
+
+    $iterator = $img->getPixelIterator();
+    foreach ($iterator as $pixels) {
+      foreach ($pixels as $pixel) {
+        $color = $pixel->getColor(true);
+        $r = isset($color['r']) ? (float)$color['r'] : 0.0;
+        $g = isset($color['g']) ? (float)$color['g'] : 0.0;
+        $b = isset($color['b']) ? (float)$color['b'] : 0.0;
+        $gray = max(0.0, min(1.0, ($r * $wr) + ($g * $wg) + ($b * $wb)));
+
+        $pixel->setColorValue($this->imagickConst('COLOR_RED', 1), $gray);
+        $pixel->setColorValue($this->imagickConst('COLOR_GREEN', 2), $gray);
+        $pixel->setColorValue($this->imagickConst('COLOR_BLUE', 3), $gray);
+      }
+      $iterator->syncIterator();
     }
   }
 
@@ -859,6 +943,202 @@ class image_manipulation {
 
     $mask->clear();
     $mask->destroy();
+  }
+
+  /**
+   * @param object $shadow
+   * @param string $shadowColor
+   * @return void
+   */
+  protected function colorizeShadowImage(&$shadow, $shadowColor) {
+    $shadowColor = $this->normalizeHexColor((string)$shadowColor, '#000000');
+
+    try {
+      $alpha = clone $shadow;
+      $alpha->separateImageChannel($this->imagickConst('CHANNEL_ALPHA', 8));
+
+      $coloredShadow = $this->createImagickInstance();
+      $coloredShadow->newImage(
+        $shadow->getImageWidth(),
+        $shadow->getImageHeight(),
+        $this->createImagickPixelInstance($shadowColor)
+      );
+      $coloredShadow->setImageFormat('png');
+      $coloredShadow->setImageAlphaChannel($this->imagickConst('ALPHACHANNEL_SET', 1));
+      $coloredShadow->compositeImage($alpha, $this->imagickConst('COMPOSITE_COPYOPACITY', 19), 0, 0);
+
+      $shadow->clear();
+      $shadow->destroy();
+      $shadow = $coloredShadow;
+
+      $alpha->clear();
+      $alpha->destroy();
+    } catch (Exception $e) {
+      $this->logImagickException($e, __METHOD__, 'drop_shadow colorize');
+    }
+  }
+
+  /**
+   * @param object $img
+   * @param string $shadowColor
+   * @param int $opacity
+   * @param float $sigma
+   * @param int $offset
+   * @return object|null
+   */
+  protected function createDropShadowLayer($img, $shadowColor, $opacity, $sigma, $offset) {
+    $shadow = null;
+
+    try {
+      $shadow = clone $img;
+
+      if (method_exists($shadow, 'setImagePage')) {
+        $shadow->setImagePage(0, 0, 0, 0);
+      }
+
+      $shadow->setImageBackgroundColor($this->createImagickPixelInstance($shadowColor));
+      $shadow->setImageAlphaChannel($this->imagickConst('ALPHACHANNEL_SET', 1));
+
+      $shadowResult = $shadow->shadowImage((int)$opacity, (float)$sigma, (int)$offset, (int)$offset);
+      if ($shadowResult === false || !method_exists($shadow, 'getImageWidth') || !method_exists($shadow, 'getImageHeight')) {
+        throw new RuntimeException('shadowImage() failed');
+      }
+
+      if (method_exists($shadow, 'setImagePage')) {
+        $shadow->setImagePage(0, 0, 0, 0);
+      }
+
+      return $shadow;
+    } catch (Exception $e) {
+      if (is_object($shadow) && method_exists($shadow, 'clear') && method_exists($shadow, 'destroy')) {
+        $shadow->clear();
+        $shadow->destroy();
+      }
+
+      $this->logImagickException($e, __METHOD__, 'drop_shadow layer');
+      return null;
+    }
+  }
+
+  /**
+   * @param object $img
+   * @param int $shadowWidth
+   * @param string $shadowColor
+   * @param int $shadowFade
+   * @return void
+   */
+  protected function applyDropShadowEffect(&$img, $shadowWidth, $shadowColor, $shadowFade = 65) {
+    $shadowWidth = max(1, (int)$shadowWidth);
+    $shadowFade = max(20, min(100, (int)$shadowFade));
+
+    $shadowLayers = array();
+    $foreground = null;
+    $base = null;
+
+    try {
+      $foreground = clone $img;
+      if (method_exists($foreground, 'setImagePage')) {
+        $foreground->setImagePage(0, 0, 0, 0);
+      }
+
+      $layerSpecs = array(
+        array(
+          'opacity' => min(95, 78 + ($shadowWidth * 2)),
+          'sigma' => max(0.8, round($shadowWidth * (0.10 + (($shadowFade / 100) * 0.12)), 1)),
+          'offset' => max(1, (int)round($shadowWidth * 0.35)),
+        ),
+        array(
+          'opacity' => min(78, 30 + (int)round($shadowWidth * (0.35 + (($shadowFade / 100) * 0.35)))),
+          'sigma' => max(1.0, round($shadowWidth * (0.18 + (($shadowFade / 100) * 0.16)), 1)),
+          'offset' => max(1, (int)round($shadowWidth * 0.65)),
+        ),
+        array(
+          'opacity' => min(60, 16 + (int)round($shadowWidth * (0.18 + (($shadowFade / 100) * 0.22)))),
+          'sigma' => max(1.2, round($shadowWidth * (0.24 + (($shadowFade / 100) * 0.20)), 1)),
+          'offset' => max(1, (int)round($shadowWidth * 1.0)),
+        ),
+      );
+
+      foreach ($layerSpecs as $layerSpec) {
+        $shadowLayer = $this->createDropShadowLayer($img, $shadowColor, $layerSpec['opacity'], $layerSpec['sigma'], $layerSpec['offset']);
+        if ($shadowLayer !== null) {
+          $shadowLayers[] = $shadowLayer;
+        }
+      }
+
+      if (count($shadowLayers) === 0) {
+        throw new RuntimeException('drop_shadow layers could not be created');
+      }
+
+      $baseWidth = $foreground->getImageWidth();
+      $baseHeight = $foreground->getImageHeight();
+      foreach ($shadowLayers as $shadowLayer) {
+        $baseWidth = max($baseWidth, $shadowLayer->getImageWidth());
+        $baseHeight = max($baseHeight, $shadowLayer->getImageHeight());
+      }
+
+      $base = $this->createImagickInstance();
+      $base->newImage($baseWidth, $baseHeight, $this->createImagickPixelInstance('transparent'));
+      $base->setImageFormat($img->getImageFormat());
+
+      foreach ($shadowLayers as $shadowLayer) {
+        $shadowOffsetX = max(0, (int)round(($baseWidth - $shadowLayer->getImageWidth()) / 2));
+        $shadowOffsetY = max(0, (int)round(($baseHeight - $shadowLayer->getImageHeight()) / 2));
+        $base->compositeImage($shadowLayer, $this->imagickConst('COMPOSITE_OVER', 40), $shadowOffsetX, $shadowOffsetY);
+      }
+
+      $offsetX = max(0, (int)round(($baseWidth - $foreground->getImageWidth()) / 2));
+      $offsetY = max(0, (int)round(($baseHeight - $foreground->getImageHeight()) / 2));
+      $base->compositeImage($foreground, $this->imagickConst('COMPOSITE_OVER', 40), $offsetX, $offsetY);
+
+      if (method_exists($base, 'setImagePage')) {
+        $base->setImagePage(0, 0, 0, 0);
+      }
+
+      $img->clear();
+      $img->destroy();
+      $img = $base;
+      $base = null;
+    } catch (Exception $e) {
+      $this->logImagickException($e, __METHOD__, 'drop_shadow');
+    } finally {
+      foreach ($shadowLayers as $shadowLayer) {
+        if (is_object($shadowLayer) && method_exists($shadowLayer, 'clear') && method_exists($shadowLayer, 'destroy')) {
+          $shadowLayer->clear();
+          $shadowLayer->destroy();
+        }
+      }
+      if (is_object($foreground) && method_exists($foreground, 'clear') && method_exists($foreground, 'destroy')) {
+        $foreground->clear();
+        $foreground->destroy();
+      }
+      if (is_object($base) && method_exists($base, 'clear') && method_exists($base, 'destroy')) {
+        $base->clear();
+        $base->destroy();
+      }
+    }
+  }
+
+  /**
+   * @param object $img
+   * @return void
+   */
+  protected function prepareImageForAlphaPipeline($img) {
+    $img->setImageBackgroundColor($this->createImagickPixelInstance('transparent'));
+    $img->setImageAlphaChannel($this->imagickConst('ALPHACHANNEL_SET', 1));
+  }
+
+  /**
+   * @param string $color
+   * @return void
+   */
+  protected function registerJpegBackgroundColor($color) {
+    $color = trim((string)$color);
+    if ($color === '') {
+      return;
+    }
+
+    $this->jpegFlattenBackgroundColor = $this->normalizeHexColor($color, '#FFFFFF');
   }
 
   /**

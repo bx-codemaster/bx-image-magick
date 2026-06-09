@@ -48,14 +48,15 @@
 
   .magick-settings-grid {
     display: grid;
-    grid-template-columns: 270px 1fr;
+    grid-template-columns: 200px 1fr 1fr;
     gap: 8px 12px;
-    align-items: center;
+    align-items: start;
   }
 
   .magick-settings-grid label {
     font-weight: bold;
     color: #333;
+    margin-top: 5px;
   }
 
   .magick-settings-grid input {
@@ -67,6 +68,61 @@
   .magick-settings-grid input.w100 {
     width: 100%;
     box-sizing: border-box;
+  }
+
+  .magick-settings-grid .range-control {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .magick-settings-grid .range-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
+
+  .magick-settings-grid .range-table-slider {
+    width: auto;
+    vertical-align: top;
+    padding-right: 10px;
+  }
+
+  .magick-settings-grid .range-table-color {
+    width: 54px;
+    text-align: right;
+    vertical-align: top;
+  }
+
+  .magick-settings-grid .range-control input[type="range"] {
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .magick-settings-grid .range-control input[type="color"] {
+    display: block;
+    width: 44px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    margin: 0 0 4px auto;
+  }
+
+  .magick-settings-grid .range-control input[type="color"]:last-child {
+    margin-bottom: 0;
+  }
+
+  .magick-settings-grid .range-minmax {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #666;
+    line-height: 1;
   }
 
   .magick-settings-actions {
@@ -96,6 +152,24 @@
   .boxRight .contentTable:nth-child(even) {
     margin-bottom: 5px;
     border-top: none;
+  }
+
+  .current-range {
+    font-size: 1.0rem;
+    font-weight: bold;
+    color: #666;
+    margin-top: 5px;
+  } 
+
+  .magick-inline-note {
+    margin-top: 4px;
+    padding: 6px 8px;
+    border-left: 3px solid #AF417E;
+    background: #ffe9f5;
+    color: #5d7282;
+    font-size: 11px;
+    line-height: 1.45;
+    border-radius: 3px;
   }
 
   /* Future: Modal (Image Magick device management / diagnostics) */

@@ -7,7 +7,7 @@
     "website": "https://www.der-eisenhans.de",
     "srcDir": "src",
     "version": "auto",
-    "shortDescription": "BX Image Magick - Erweiterung für die Bildbearbeitung mit ImageMagick",
+    "shortDescription": "BX Image Magick - Erweiterung der Bildbearbeitung mit ImageMagick",
     "description": "Mit dieser Erweiterung besteht die Möglichkeit, Bilder im Shop mit ImageMagick zu bearbeiten. Die Erweiterung bietet verschiedene Funktionen zur Bildbearbeitung, wie z.B. Größenänderung, Zuschneiden, Wasserzeichen und mehr.",
     "price": "free", 
     "date": "2026-06-02 00:00:00",

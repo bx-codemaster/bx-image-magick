@@ -27,10 +27,13 @@ define('TEXT_BX_IMAGE_MAGICK_FUNCTIONS_INTRO', 'Geplante Effektoptionen: bevel, 
 define('TEXT_BX_IMAGE_MAGICK_SUPPORT_INTRO', 'Support- und Diagnosefunktionen werden schrittweise ergänzt.');
 define('TEXT_BX_IMAGE_MAGICK_IMAGE_TAB_INTRO', 'Konfiguriere Merge und Effekt-Optionen für diese Bildgröße.');
 define('TEXT_BX_IMAGE_MAGICK_FIELD_MERGE_STRING', 'Merge-String');
-define('TEXT_BX_IMAGE_MAGICK_FIELD_EFFECT_ORDER', 'Effekt-Reihenfolge (Transform-String)');
+define('TEXT_BX_IMAGE_MAGICK_FIELD_EFFECT_ORDER', 'Effekt-Reihenfolge');
 define('TEXT_BX_IMAGE_MAGICK_FIELD_ROUND_EDGES', 'Round Edges Radius');
-define('TEXT_BX_IMAGE_MAGICK_FIELD_DROP_SHADOW', 'Drop Shadow Width');
+define('TEXT_BX_IMAGE_MAGICK_FIELD_DROP_SHADOW', 'Drop Shadow');
+define('TEXT_BX_IMAGE_MAGICK_FIELD_DROP_SHADOW_FADE', 'Drop Shadow Fade');
 define('TEXT_BX_IMAGE_MAGICK_FIELD_GREYSCALE', 'Greyscale (r,g,b)');
+define('TEXT_BX_IMAGE_MAGICK_DROP_SHADOW_COLOR_HINT', 'Schattenfarbe definiert die Farbe des Schattenwurfs. Die Hintergrundfarbe wird nur bei JPG/JPEG als Füllfarbe für transparente Bereiche verwendet.');
+define('TEXT_BX_IMAGE_MAGICK_DROP_SHADOW_FADE_HINT', 'Hinweis: Kleine Fade-Werte erzeugen einen kompakteren Schatten mit frühem Auslauf. Große Fade-Werte verlängern den Verlauf und lassen den Schatten weicher in die Transparenz übergehen.');
 define('TEXT_BX_IMAGE_MAGICK_ACTION_SAVE', 'Speichern');
 define('TEXT_BX_IMAGE_MAGICK_ACTION_PREVIEW', 'Vorschau erzeugen');
 define('TEXT_BX_IMAGE_MAGICK_SUPPORT_HINT_1', 'Geplant: Live-Preview mit temporären Dateien (tmp).');

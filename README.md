@@ -4,7 +4,7 @@
 
 Dieses Modul stellt die Klasse `image_manipulation` bereit und ersetzt die klassische GD-basierte Bildverarbeitung durch Imagick.
 
-Ausfuehrliches Methoden-Handbuch mit Aufrufreihenfolge und Beispielen:
+Ausführliches Methoden-Handbuch mit Aufrufreihenfolge und Beispielen:
 - `docs/HANDBUCH-image_manipulation.md`
 
 Datei der Klasse:
@@ -53,7 +53,7 @@ Ein internes Flag verhindert dabei doppeltes WebP-Schreiben.
 
 Für CMYK-Quellen nutzt die Klasse konfigurierte oder fallback-basierte Profile:
 - CMYK: `IMAGEMANIPULATOR_ICC_PROFILE_CMYK`
-- RGB: `IMAGEMANIPULATOR_ICC_PROFILE_RGB`
+- RGB:  `IMAGEMANIPULATOR_ICC_PROFILE_RGB`
 
 Damit werden Farbabweichungen bei Druckdaten deutlich reduziert.
 
