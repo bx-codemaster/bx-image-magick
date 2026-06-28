@@ -18,13 +18,18 @@
 
 require ('includes/application_top.php');
 require_once(DIR_FS_ADMIN . 'includes/extra/functions/bx_image_magick.php');
+/*
+echo '<pre>';
+var_dump($_POST);
+echo '</pre>'; die();
+*/
 
 $imageSizeTabs = array(
   array(
-    'id'              => 'info',
-    'title'           => TEXT_BX_IMAGE_MAGICK_TAB_INFO,
-    'merge_const'     => 'PRODUCT_IMAGE_INFO_MERGE',
-    'transform_const' => 'PRODUCT_IMAGE_INFO_TRANSFORM',
+    'id'              => 'mini',
+    'title'           => TEXT_BX_IMAGE_MAGICK_TAB_MINI,
+    'merge_const'     => 'PRODUCT_IMAGE_MINI_MERGE',
+    'transform_const' => 'PRODUCT_IMAGE_MINI_TRANSFORM',
   ),
   array(
     'id'              => 'midi',
@@ -33,22 +38,22 @@ $imageSizeTabs = array(
     'transform_const' => 'PRODUCT_IMAGE_MIDI_TRANSFORM',
   ),
   array(
-    'id'              => 'mini',
-    'title'           => TEXT_BX_IMAGE_MAGICK_TAB_MINI,
-    'merge_const'     => 'PRODUCT_IMAGE_MINI_MERGE',
-    'transform_const' => 'PRODUCT_IMAGE_MINI_TRANSFORM',
+    'id'              => 'thumbnail',
+    'title'           => TEXT_BX_IMAGE_MAGICK_TAB_THUMBNAIL,
+    'merge_const'     => 'PRODUCT_IMAGE_THUMBNAIL_MERGE',
+    'transform_const' => 'PRODUCT_IMAGE_THUMBNAIL_TRANSFORM',
+  ),
+  array(
+    'id'              => 'info',
+    'title'           => TEXT_BX_IMAGE_MAGICK_TAB_INFO,
+    'merge_const'     => 'PRODUCT_IMAGE_INFO_MERGE',
+    'transform_const' => 'PRODUCT_IMAGE_INFO_TRANSFORM',
   ),
   array(
     'id'              => 'popup',
     'title'           => TEXT_BX_IMAGE_MAGICK_TAB_POPUP,
     'merge_const'     => 'PRODUCT_IMAGE_POPUP_MERGE',
     'transform_const' => 'PRODUCT_IMAGE_POPUP_TRANSFORM',
-  ),
-  array(
-    'id'              => 'thumbnail',
-    'title'           => TEXT_BX_IMAGE_MAGICK_TAB_THUMBNAIL,
-    'merge_const'     => 'PRODUCT_IMAGE_THUMBNAIL_MERGE',
-    'transform_const' => 'PRODUCT_IMAGE_THUMBNAIL_TRANSFORM',
   ),
 );
 
@@ -68,6 +73,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'save' && isset($_POST['save_i
     $dropShadowInputName        = 'drop_shadow_' . $tab['id'];
     $dropShadowColorInputName   = 'drop_shadow_color_' . $tab['id'];
     $dropShadowBgColorInputName = 'drop_shadow_bg_color_' . $tab['id'];
+    $dropShadowFadeInputName    = 'drop_shadow_fade_' . $tab['id'];
 
     $mergeValue = isset($_POST[$mergeInputName]) ? trim((string)$_POST[$mergeInputName]) : '';
     if (strlen($mergeValue) > 512) {
@@ -94,9 +100,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'save' && isset($_POST['save_i
     $dropShadowWidth = max(0, min(50, $dropShadowWidth));
     $dropShadowColor = bx_imagemagick_normalize_hex_color(isset($_POST[$dropShadowColorInputName]) ? (string)$_POST[$dropShadowColorInputName] : '', '000000');
     $dropShadowBgColor = bx_imagemagick_normalize_hex_color(isset($_POST[$dropShadowBgColorInputName]) ? (string)$_POST[$dropShadowBgColorInputName] : '', 'FFFFFF');
-    $dropShadowFadeInputName = 'drop_shadow_fade_' . $tab['id'];
-    $dropShadowFade = isset($_POST[$dropShadowFadeInputName]) ? (int)$_POST[$dropShadowFadeInputName] : 65;
-    $dropShadowFade = max(20, min(100, $dropShadowFade));
+    
+    $dropShadowFade = isset($_POST[$dropShadowFadeInputName]) ? (int)$_POST[$dropShadowFadeInputName] : 0;
+    $dropShadowFade = max(0, min(100, $dropShadowFade));
 
     $transformValue = bx_imagemagick_upsert_round_edges_transform($transformValue, $roundEdgesRadius, $roundEdgesBackgroundColor);
     $transformValue = bx_imagemagick_upsert_drop_shadow_transform($transformValue, $dropShadowWidth, $dropShadowColor, $dropShadowBgColor, $dropShadowFade);
@@ -146,40 +152,57 @@ $messageStack->output();
     <!-- body_text //-->
     <td class="boxCenter">
       <div class="pageHeadingImage" style="width: 42px;">
-        <?php echo xtc_image(DIR_WS_ICONS.'heading/bx_image_magick.png', BX_IMAGE_MAGICK_TITLE, '', '', 'style="height: 32px;"'); ?>
+        <?php echo xtc_image(DIR_WS_ICONS.'heading/bx_image_magick.png', BX_IMAGE_MAGICK_TITLE, '', '', 'style="height: 42px;"'); ?>
       </div>
-      <div class="pageHeading flt-l">
+      <div class="pageHeading" style="margin-bottom: 5px;">
         <?php echo BX_IMAGE_MAGICK_TITLE; ?>
-        <div class="main pdg2">
-          <?php echo BX_IMAGE_MAGICK_DESCRIPTION; ?>
-        </div>
+      </div>
+      <div class="main flt-l">
+        <?php echo BX_IMAGE_MAGICK_SHORT_DESCRIPTION; ?>
       </div>
       <div class="clear"></div>
 
       <table class="tableCenter" style="margin-top: 5px;">
         <tr>
           <td class="boxCenterLeft">
-            <div class="main" style="display: flex; flex-direction: row; justify-content: left; align-items: center; background: #AF417E; color: #ffffff; border-radius: 4px; margin: 0 0 5px 0; padding: 4px 0 2px 0;">
-              <div class="main" style="margin: 5px 10px;"><strong><span style="font-size: 1.5em;">🔑</span> <?php echo BX_IMAGE_MAGICK_DESCRIPTION; ?></strong></div>
+            <div id="bx_header">
+              <div class="main"><?php echo BX_IMAGE_MAGICK_LONG_DESCRIPTION; ?></div>
             </div>
             
             <div class="magick-tabs">
               <?php echo xtc_draw_form('bx_image_magick_settings', FILENAME_BX_IMAGE_MAGICK, 'action=save', 'post'); ?>
               <input type="hidden" name="save_image_magick_settings" value="1" />
               <ul class="tab-nav">
-                <?php foreach ($imageSizeTabs as $tab) { ?>
+                <?php foreach ($imageSizeTabs as $tab) { 
+                  $tabIdLeft = 'tab-' . $tab['id'] . '-left';
+                  $tabIdRight = 'tab-' . $tab['id'] . '-right';
+                  $image_width = constant('PRODUCT_IMAGE_' . strtoupper($tab['id']) . '_WIDTH');
+                  $image_height = constant('PRODUCT_IMAGE_' . strtoupper($tab['id']) . '_HEIGHT');
+                ?>
                   <li>
-                    <a href="#tab-<?php echo $tab['id']; ?>">
+                    <a href="#<?php echo $tabIdLeft; ?>" 
+                      class="tab-link"
+                      data-target-left="#<?php echo $tabIdLeft; ?>" 
+                      data-target-right="#<?php echo $tabIdRight; ?>"
+                      data-preview-width="<?php echo $image_width; ?>" 
+                      data-preview-height="<?php echo $image_height; ?>">
                       <span style="font-size: 14px;">🖼️</span> <?php echo $tab['title']; ?>
                     </a>
                   </li>
-                <?php } ?>
-                <li><a href="#tab-support"><span style="font-size: 14px;">🛠️</span> <?php echo TEXT_BX_IMAGE_MAGICK_TAB_SUPPORT; ?></a></li>
+                <?php } ?>                
+                <li>
+                  <a href="#tab-support-left" 
+                    class="tab-link"
+                    data-target-left="#tab-support-left" 
+                    data-target-right="#tab-support-right">
+                    <span style="font-size: 14px;">🛠️</span> <?php echo TEXT_BX_IMAGE_MAGICK_TAB_SUPPORT; ?>
+                  </a>
+                </li>
               </ul>
 
               <div class="tab-content">
                 <?php foreach ($imageSizeTabs as $tab) { ?>
-                  <div id="tab-<?php echo $tab['id']; ?>">
+                  <div id="tab-<?php echo $tab['id']; ?>-left">
                     <div class="magick-settings-wrap">
                       <div class="main" style="padding: 2px 0 8px 0;">
                         <strong><?php echo $tab['title']; ?></strong>
@@ -191,15 +214,15 @@ $messageStack->output();
                       <div class="magick-settings-grid">
                         <label><?php echo TEXT_BX_IMAGE_MAGICK_FIELD_MERGE_STRING; ?></label>
                         <input type="text" class="w100" name="merge_<?php echo $tab['id']; ?>" value="<?php echo htmlspecialchars(bx_imagemagick_const_value($tab['merge_const']), ENT_QUOTES, 'UTF-8'); ?>" />
-                        <div>
-                          Standard Wert: (overlay.gif,10,-50,60,FF0000)
-                          Verwendung:
-                          (merge image,x start [neg = from right],y start [neg = from base],opacity, transparent colour on merge image)
+                        <div class="magick-inline-note">
+                          <?php echo TEXT_BX_IMAGE_MAGICK_FIELD_MERGE_STRING_HINT; ?>
                         </div>
 
                         <label><?php echo TEXT_BX_IMAGE_MAGICK_FIELD_EFFECT_ORDER; ?></label>
-                        <input type="text" class="w100" name="transform_<?php echo $tab['id']; ?>" value="<?php echo htmlspecialchars(bx_imagemagick_const_value($tab['transform_const']), ENT_QUOTES, 'UTF-8'); ?>" placeholder="round_edges(4),drop_shadow(3)" />
-                        <div>Dieses Feld wird automatisch aus den gewählten Effekten befüllt und definiert die auszuführende Effekt-Reihenfolge.</div>
+                        <input type="text" class="w100" name="transform_<?php echo $tab['id']; ?>" value="<?php echo htmlspecialchars(bx_imagemagick_const_value($tab['transform_const']), ENT_QUOTES, 'UTF-8'); ?>" placeholder="<?php echo TEXT_BX_IMAGE_MAGICK_FIELD_EFFECT_PLACEHOLDER; ?>" />
+                        <div class="magick-inline-note">
+                          <?php echo TEXT_BX_IMAGE_MAGICK_FIELD_EFFECT_ORDER_HINT; ?>
+                        </div>
 
                         <?php
                           $roundEdgesMin = 0;
@@ -234,15 +257,15 @@ $messageStack->output();
                         <div><div class="current-range"><span class="range-current" data-for="round_edges_id_<?php echo $tab['id']; ?>"><?php echo $roundEdgesCurrentRadius; ?></span> px</div></div>
 
                         <?php
-                          $dropShadowMin = 0;
-                          $dropShadowMax = 50;
-                          $dropShadowListId = 'tickmarks_drop_shadow_' . $tab['id'];
-                          $dropShadowConfig = bx_imagemagick_extract_drop_shadow_values(bx_imagemagick_const_value($tab['transform_const']));
-                          $dropShadowCurrentWidth = max($dropShadowMin, min($dropShadowMax, (int)$dropShadowConfig['width']));
-                          $dropShadowCurrentColor = '#' . strtolower((string)$dropShadowConfig['shadow_color']);
+                          $dropShadowMin            = 0;
+                          $dropShadowMax            = 50;
+                          $dropShadowListId         = 'tickmarks_drop_shadow_' . $tab['id'];
+                          $dropShadowConfig         = bx_imagemagick_extract_drop_shadow_values(bx_imagemagick_const_value($tab['transform_const']));
+                          $dropShadowCurrentWidth   = max($dropShadowMin, min($dropShadowMax, (int)$dropShadowConfig['width']));
+                          $dropShadowCurrentColor   = '#' . strtolower((string)$dropShadowConfig['shadow_color']);
                           $dropShadowCurrentBgColor = '#' . strtolower((string)$dropShadowConfig['background_color']);
-                          $dropShadowCurrentFade = max(20, min(100, isset($dropShadowConfig['fade']) ? (int)$dropShadowConfig['fade'] : 65));
-                          $dropShadowFadeListId = 'tickmarks_drop_shadow_fade_' . $tab['id'];
+                          $dropShadowCurrentFade    = max(0, min(100, isset($dropShadowConfig['fade']) ? (int)$dropShadowConfig['fade'] : 0));
+                          $dropShadowFadeListId     = 'tickmarks_drop_shadow_fade_' . $tab['id'];
                         ?>
                         <label for="drop_shadow_id_<?php echo $tab['id']; ?>"><?php echo TEXT_BX_IMAGE_MAGICK_FIELD_DROP_SHADOW; ?></label>
                         <div class="range-control">
@@ -277,14 +300,14 @@ $messageStack->output();
                           <table class="range-table" cellspacing="0" cellpadding="0">
                             <tr>
                               <td class="range-table-slider">
-                                <input type="range" min="20" max="100" id="drop_shadow_fade_id_<?php echo $tab['id']; ?>" name="drop_shadow_fade_<?php echo $tab['id']; ?>" value="<?php echo $dropShadowCurrentFade; ?>" list="<?php echo $dropShadowFadeListId; ?>" />
+                                <input type="range" min="0" max="100" id="drop_shadow_fade_id_<?php echo $tab['id']; ?>" name="drop_shadow_fade_<?php echo $tab['id']; ?>" value="<?php echo $dropShadowCurrentFade; ?>" list="<?php echo $dropShadowFadeListId; ?>" />
                                 <datalist id="<?php echo $dropShadowFadeListId; ?>">
-                                  <?php for ($i = 20; $i <= 100; $i++) { ?>
-                                    <option value="<?php echo $i; ?>"<?php if ($i === 20 || $i === 100) { ?> label="<?php echo $i; ?>"<?php } ?>></option>
+                                  <?php for ($i = 0; $i <= 100; $i++) { ?>
+                                    <option value="<?php echo $i; ?>"<?php if ($i === 0 || $i === 100) { ?> label="<?php echo $i; ?>"<?php } ?>></option>
                                   <?php } ?>
                                 </datalist>
                                 <div class="range-minmax">
-                                  <span>20</span>
+                                  <span>0</span>
                                   <span>100</span>
                                 </div>
                               </td>
@@ -365,7 +388,7 @@ $messageStack->output();
                 <?php } ?>
 
                 <!-- TAB 3: SUPPORT-AKTIONEN //-->
-                <div id="tab-support">
+                <div id="tab-support-left">
                   <div class="main" style="padding: 4px 0;">
                     <?php echo TEXT_BX_IMAGE_MAGICK_SUPPORT_INTRO; ?>
                   </div>
@@ -384,24 +407,133 @@ $messageStack->output();
           </td>
           <td class="boxRight">
 <?php
-
-  $heading  = array();
-  $contents = array();
-
-  $heading[]  = array('text' => '<strong>🧪 ' . TEXT_BX_IMAGE_MAGICK_PREVIEW_PANEL . '</strong>');
-  $contents[] = array('text' => '<div class="main">' . TEXT_BX_IMAGE_MAGICK_PREVIEW_HINT . '</div>
-                                <div class="magick-preview-placeholder">' . TEXT_BX_IMAGE_MAGICK_PREVIEW_PLACEHOLDER . '</div>');
-
-  $heading[]  = array('text' => '<strong>⚡ ' . TEXT_BX_IMAGE_MAGICK_QUICK_ACTIONS . '</strong>');
-  $contents[] = array('text' => '<strong>' . TEXT_BX_IMAGE_MAGICK_MODULE_SETTINGS . '</strong><br>
-                                <a href="'.xtc_href_link(FILENAME_MODULE_EXPORT, 'set=system&module=bx_image_magick&action=edit').'" class="button but_green" style="line-height: 24px; padding: 6px 15px 6px 10px; min-width: 105px;"><span style="font-size: 18px; vertical-align: middle;">⚙️</span> ' . TEXT_BX_IMAGE_MAGICK_CONFIGURATION . '</a>');
-  $contents[] = array('text' => '<strong>' . TEXT_BX_IMAGE_MAGICK_IMAGE_PROCESSING . '</strong><br>
-                                <a href="'.xtc_href_link(FILENAME_IMAGEMANIPULATOR).'" class="button but_green" style="line-height: 24px; padding: 6px 15px 6px 10px; min-width: 105px;"><span style="font-size: 18px; vertical-align: middle;">🖼️</span> ' . TEXT_BX_IMAGE_MAGICK_RUN_IMAGE_PROCESSING . '</a>');
-  if ( (xtc_not_null($heading)) && (xtc_not_null($contents)) ) {
-    $box = new box;
-    echo $box->infoBox($heading, $contents);
-  }
+/**
+ * DIR_FS_CATALOG_MINI_IMAGES
+ * DIR_WS_CATALOG_MINI_IMAGES
+ * .....
+ * 
+ * PRODUCT_IMAGE_MINI_WIDTH
+ * PRODUCT_IMAGE_MINI_HEIGHT
+ * 
+ * PRODUCT_IMAGE_MIDI_WIDTH
+ * PRODUCT_IMAGE_MIDI_HEIGHT
+ * 
+ * PRODUCT_IMAGE_THUMBNAIL_WIDTH
+ * PRODUCT_IMAGE_THUMBNAIL_HEIGHT
+ * 
+ * PRODUCT_IMAGE_INFO_WIDTH
+ * PRODUCT_IMAGE_INFO_HEIGHT
+ * 
+ * PRODUCT_IMAGE_POPUP_WIDTH
+ * PRODUCT_IMAGE_POPUP_HEIGHT
+ * 
+ * function xtc_image($src, $alt = '', $width = '', $height = '', $params = '')
+ */
+/*  
+  $contents[] = array('text' => '<div class="magick-preview-placeholder">'
+       . xtc_image(DIR_WS_CATALOG_POPUP_IMAGES.'580_0.png', '', PRODUCT_IMAGE_POPUP_WIDTH, PRODUCT_IMAGE_POPUP_HEIGHT, 'max-width: 100%; height: auto;') 
+       . '</div>');
+*/
 ?>
+            <div class="tab-content">
+              
+              <div id="tab-mini-right" role="tabpanel" aria-labelledby="tab-link-setup" tabindex="0" hidden="hidden">
+                <?php
+                $heading  = array();
+                $contents = array();                
+                $heading[]  = array('text' => '<strong>🧪 ' . TEXT_BX_IMAGE_MAGICK_PREVIEW_PANEL . '</strong>');
+
+                $contents[] = array('text' => '<div class="magick-preview-placeholder">'
+       . xtc_image(DIR_WS_CATALOG_POPUP_IMAGES.'580_0.png', '', PRODUCT_IMAGE_MINI_WIDTH, PRODUCT_IMAGE_MINI_HEIGHT, 'max-width: 100%; height: auto;') 
+       . '</div><div class="magick-size-warning">⚠️ ' . TEXT_BX_IMAGE_MAGICK_MESSAGE_IMAGE_SCALED_DOWN . '</div>');
+                if ( (xtc_not_null($heading)) && (xtc_not_null($contents)) ) {
+                  $box = new box;
+                  echo $box->infoBox($heading, $contents);
+                }
+                ?>
+              </div> <!-- end tab-mini-right //-->
+              
+              <div id="tab-midi-right" role="tabpanel" aria-labelledby="tab-link-setup" tabindex="0" hidden="hidden">
+                <?php
+                $heading  = array();
+                $contents = array();                
+                $heading[]  = array('text' => '<strong>🧪 ' . TEXT_BX_IMAGE_MAGICK_PREVIEW_PANEL . '</strong>');
+
+                $contents[] = array('text' => '<div class="magick-preview-placeholder">'
+       . xtc_image(DIR_WS_CATALOG_POPUP_IMAGES.'580_0.png', '', PRODUCT_IMAGE_MIDI_WIDTH, PRODUCT_IMAGE_MIDI_HEIGHT, 'max-width: 100%; height: auto;') 
+       . '</div><div class="magick-size-warning">⚠️ ' . TEXT_BX_IMAGE_MAGICK_MESSAGE_IMAGE_SCALED_DOWN . '</div>');
+                if ( (xtc_not_null($heading)) && (xtc_not_null($contents)) ) {
+                  $box = new box;
+                  echo $box->infoBox($heading, $contents);
+                }
+                ?>
+              </div> <!-- end tab-midi-right //-->
+              
+              <div id="tab-thumbnail-right" role="tabpanel" aria-labelledby="tab-link-setup" tabindex="0" hidden="hidden">
+                <?php
+                $heading  = array();
+                $contents = array();                
+                $heading[]  = array('text' => '<strong>🧪 ' . TEXT_BX_IMAGE_MAGICK_PREVIEW_PANEL . '</strong>');
+
+                $contents[] = array('text' => '<div class="magick-preview-placeholder">'
+       . xtc_image(DIR_WS_CATALOG_POPUP_IMAGES.'580_0.png', '', PRODUCT_IMAGE_THUMBNAIL_WIDTH, PRODUCT_IMAGE_THUMBNAIL_HEIGHT, 'max-width: 100%; height: auto;') 
+       . '</div><div class="magick-size-warning">⚠️ ' . TEXT_BX_IMAGE_MAGICK_MESSAGE_IMAGE_SCALED_DOWN . '</div>');
+                if ( (xtc_not_null($heading)) && (xtc_not_null($contents)) ) {
+                  $box = new box;
+                  echo $box->infoBox($heading, $contents);
+                }
+                ?>
+              </div> <!-- end tab-thumbnail-right //-->
+
+              <div id="tab-info-right" role="tabpanel" aria-labelledby="tab-link-setup" tabindex="0" hidden="hidden">
+                <?php
+                $heading  = array();
+                $contents = array();                
+                $heading[]  = array('text' => '<strong>🧪 ' . TEXT_BX_IMAGE_MAGICK_PREVIEW_PANEL . '</strong>');
+
+                $contents[] = array('text' => '<div class="magick-preview-placeholder">'
+       . xtc_image(DIR_WS_CATALOG_POPUP_IMAGES.'580_0.png', '', PRODUCT_IMAGE_INFO_WIDTH, PRODUCT_IMAGE_INFO_HEIGHT, 'max-width: 100%; height: auto;') 
+       . '</div><div class="magick-size-warning">⚠️ ' . TEXT_BX_IMAGE_MAGICK_MESSAGE_IMAGE_SCALED_DOWN . '</div>');
+                if ( (xtc_not_null($heading)) && (xtc_not_null($contents)) ) {
+                  $box = new box;
+                  echo $box->infoBox($heading, $contents);
+                }
+                ?>
+              </div> <!-- end tab-info-right //-->
+              
+              <div id="tab-popup-right" role="tabpanel" aria-labelledby="tab-link-setup" tabindex="0" hidden="hidden">
+                <?php
+                $heading  = array();
+                $contents = array();                
+                $heading[]  = array('text' => '<strong>🧪 ' . TEXT_BX_IMAGE_MAGICK_PREVIEW_PANEL . '</strong>');
+
+                $contents[] = array('text' => '<div class="magick-preview-placeholder">'
+       . xtc_image(DIR_WS_CATALOG_POPUP_IMAGES.'580_0.png', '', PRODUCT_IMAGE_POPUP_WIDTH, PRODUCT_IMAGE_POPUP_HEIGHT, 'max-width: 100%; height: auto;') 
+       . '</div><div class="magick-size-warning">⚠️ ' . TEXT_BX_IMAGE_MAGICK_MESSAGE_IMAGE_SCALED_DOWN . '</div>');
+
+                if ( (xtc_not_null($heading)) && (xtc_not_null($contents)) ) {
+                  $box = new box;
+                  echo $box->infoBox($heading, $contents);
+                }
+                ?>
+              </div> <!-- end tab-popup-right //-->
+
+              <div id="tab-support-right" role="tabpanel" aria-labelledby="tab-link-setup" tabindex="0" hidden="hidden">
+                <?php
+                $heading  = array();
+                $contents = array();                
+                $heading[]  = array('text' => '<strong>🧪 ' . TEXT_BX_IMAGE_MAGICK_TAB_SUPPORT . '</strong>');
+
+                $contents[] = array('text' => 'tab-support-right');
+                if ( (xtc_not_null($heading)) && (xtc_not_null($contents)) ) {
+                  $box = new box;
+                  echo $box->infoBox($heading, $contents);
+                }
+                ?>
+              </div> <!-- end tab-support-right //-->
+ 
+            </div>  
+
           </td>
         </tr>
       </table>

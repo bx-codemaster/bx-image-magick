@@ -336,30 +336,38 @@ function bx_imagemagick_upsert_round_edges_transform(string $transform, int $rad
  * @param int $fallbackFade Fallback-Intensität für den Schattenverlauf.
  * @return array{width:int,shadow_color:string,background_color:string,fade:int} Normalisierte Schattenkonfiguration.
  */
-function bx_imagemagick_extract_drop_shadow_values(string $transform, int $fallbackWidth = 0, string $fallbackShadowColor = '000000', string $fallbackBackgroundColor = 'FFFFFF', int $fallbackFade = 65): array {
-	$fallbackShadowColor = bx_imagemagick_normalize_hex_color($fallbackShadowColor, '000000');
+function bx_imagemagick_extract_drop_shadow_values(string $transform, int $fallbackWidth = 0, string $fallbackShadowColor = '000000', string $fallbackBackgroundColor = 'FFFFFF', int $fallbackFade = 0): array {
+	$fallbackShadowColor     = bx_imagemagick_normalize_hex_color($fallbackShadowColor, '000000');
 	$fallbackBackgroundColor = bx_imagemagick_normalize_hex_color($fallbackBackgroundColor, 'FFFFFF');
-	$fallbackFade = max(20, min(100, (int)$fallbackFade));
+	$fallbackFade            = max(0, min(100, (int)$fallbackFade));
 
-	if (preg_match('/drop_shadow\s*\(\s*(-?\d+)\s*(?:,\s*([#A-Fa-f0-9]{3,6})\s*)?(?:,\s*([#A-Fa-f0-9]{3,6})\s*)?(?:,\s*(-?\d{1,3})\s*)?\)/i', $transform, $matches)) {
-		$width = max(0, (int)$matches[1]);
-		$shadowColor = bx_imagemagick_normalize_hex_color(isset($matches[2]) ? (string)$matches[2] : '', $fallbackShadowColor);
-		$backgroundColor = bx_imagemagick_normalize_hex_color(isset($matches[3]) ? (string)$matches[3] : '', $fallbackBackgroundColor);
-		$fade = max(20, min(100, isset($matches[4]) ? (int)$matches[4] : $fallbackFade));
+	// 1. Finde den drop_shadow(...) Aufruf und extrahiere nur den Inhalt der Klammer
+	if (preg_match('/drop_shadow\s*\(([^)]+)\)/i', $transform, $matches)) {
+		// Teile den Inhalt an den Kommas auf
+		$args = explode(',', $matches[1]);
+		$args = array_map('trim', $args);
+
+		// Breite ist immer das 1. Argument
+		$width = isset($args[0]) ? max(0, (int)$args[0]) : max(0, $fallbackWidth);
+		
+		// Farben und Fade anhand der Array-Positionen sauber auslesen
+		$shadowColor     = bx_imagemagick_normalize_hex_color(isset($args[1]) ? $args[1] : '', $fallbackShadowColor);
+		$backgroundColor = bx_imagemagick_normalize_hex_color(isset($args[2]) ? $args[2] : '', $fallbackBackgroundColor);
+		$fade            = max(0, min(100, isset($args[3]) ? (int)$args[3] : $fallbackFade));
 
 		return array(
-			'width' => $width,
-			'shadow_color' => $shadowColor,
+			'width'            => $width,
+			'shadow_color'     => $shadowColor,
 			'background_color' => $backgroundColor,
-			'fade' => $fade,
+			'fade'             => $fade,
 		);
 	}
 
 	return array(
-		'width' => max(0, $fallbackWidth),
-		'shadow_color' => $fallbackShadowColor,
+		'width'            => max(0, $fallbackWidth),
+		'shadow_color'     => $fallbackShadowColor,
 		'background_color' => $fallbackBackgroundColor,
-		'fade' => $fallbackFade,
+		'fade'             => $fallbackFade,
 	);
 }
 
@@ -401,7 +409,7 @@ function bx_imagemagick_upsert_drop_shadow_transform(string $transform, int $wid
 	if ($width > 0) {
 		$shadowColor = bx_imagemagick_normalize_hex_color($shadowColor, '000000');
 		$backgroundColor = bx_imagemagick_normalize_hex_color($backgroundColor, 'FFFFFF');
-		$fade = max(20, min(100, (int)$fade));
+		$fade = max(0, min(100, (int)$fade));
 		array_splice($next, $insertAt, 0, array('drop_shadow(' . $width . ',' . $shadowColor . ',' . $backgroundColor . ',' . $fade . ')'));
 	}
 
@@ -432,4 +440,13 @@ function bx_imagemagick_save_configuration(string $key, string $value): bool {
 								 SET configuration_value = '" . $value . "'
 							 WHERE configuration_key = '" . $key . "'");
 	return true;
+}
+
+/**
+ * Konfigurationseingabefeld für die Modulversion (read-only)
+ */
+if (!function_exists('bx_configuration_field_version')) {
+  function bx_configuration_field_version(string $value, string $constant): string {
+    return xtc_draw_input_field( 'configuration['.$constant.']', $value, 'readonly="true" style="opacity: 0.4;"');
+  }
 }

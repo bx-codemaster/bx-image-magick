@@ -216,7 +216,7 @@ class bx_image_magick {
                                                                   6,
                                                                   5,
                                                                   NULL,
-                                                                  NULL,
+                                                                  'bx_configuration_field_version(',
                                                                   now())");
 
                                   xtc_db_query("INSERT INTO " . TABLE_CONFIGURATION . " ( configuration_key,

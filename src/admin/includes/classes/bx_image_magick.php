@@ -66,6 +66,10 @@ class image_manipulation {
   /** @var string */
   protected string $jpegFlattenBackgroundColor = '#FFFFFF';
 
+  // Steuert, ob das Bild direkt an den Browser ausgegeben werden soll
+  /** @var bool */
+  protected bool $output_to_browser = false;
+
   /**
    * Initialisiert eine Bildmanipulationsinstanz mit Quelle, Ziel und Optionen.
    *
@@ -109,6 +113,30 @@ class image_manipulation {
     if ($autoCreateOnConstruct && is_file((string)$this->resource_file) && $this->destination_file !== '') {
       $this->create();
     }
+  }
+
+  /**
+   * Setter, um die Browser-Ausgabe zu aktivieren
+   */
+  public function setOutputToBrowser(bool $status = true): self {
+      $this->output_to_browser = $status;
+      return $this;
+  }
+
+  /**
+   * Ermittelt den passenden HTTP-Mime-Type basierend auf dem internen Image-Type
+   */
+  protected function getMimeTypeFromImageType(string $image_type): string {
+      // Da ich deine genaue detectImageType-Rückgabe nicht kenne (z.B. String oder Int-Konstante),
+      // hier ein sicherer Fallback direkt über Imagick, falls dein Typ ein String ist:
+      $type = strtolower((string)$image_type);
+      
+      if (strpos($type, 'png') !== false) return 'image/png';
+      if (strpos($type, 'webp') !== false) return 'image/webp';
+      if (strpos($type, 'gif') !== false) return 'image/gif';
+      if (strpos($type, 'avif') !== false) return 'image/avif';
+      
+      return 'image/jpeg';
   }
 
   /**
@@ -205,6 +233,18 @@ class image_manipulation {
       $write_target = $this->configureOutputFormatPolicy($img, $this->image_type, $this->destination_file);
 
       $this->finalizeImageForWrite($img, $this->image_type);
+
+      // Browser-Ausgabe statt Dateisystem ---
+      if ($this->output_to_browser) {
+          // Passenden Content-Type Header anhand des erkannten Typs senden
+          // (z.B. image/jpeg, image/png, image/webp)
+          $mimeType = $this->getMimeTypeFromImageType($this->image_type);
+          header("Content-Type: " . $mimeType);
+          
+          // Bild-Blob direkt ausgeben
+          echo $img->getImageBlob();
+          return; // Methode hier beenden, damit im 'finally' sauber zerstört wird
+      }
 
       $dir = dirname($this->destination_file);
       if (!$this->ensureDirectoryExists($dir, __METHOD__, (string)$this->destination_file)) {

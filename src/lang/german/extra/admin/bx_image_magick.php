@@ -15,7 +15,8 @@
  */
 	
 define('BX_IMAGE_MAGICK_TITLE', 'BX Image Magick');
-define('BX_IMAGE_MAGICK_DESCRIPTION', 'Modul zur Bildbearbeitung mit ImageMagick, einschließlich Unterstützung von ICC-Farbprofilen für CMYK- und RGB-Konvertierungen.');
+define('BX_IMAGE_MAGICK_SHORT_DESCRIPTION', 'Modul zur Bildbearbeitung mit ImageMagick.');
+define('BX_IMAGE_MAGICK_LONG_DESCRIPTION', 'Modul zur Bildbearbeitung mit ImageMagick, einschließlich Unterstützung von ICC-Farbprofilen für CMYK- und RGB-Konvertierungen.');
 
 define('TEXT_BX_IMAGE_MAGICK_TAB_DASHBOARD', 'Dashboard');
 define('TEXT_BX_IMAGE_MAGICK_TAB_FUNCTIONS', 'Funktionen');
@@ -31,7 +32,10 @@ define('TEXT_BX_IMAGE_MAGICK_FUNCTIONS_INTRO', 'Geplante Effektoptionen: bevel, 
 define('TEXT_BX_IMAGE_MAGICK_SUPPORT_INTRO', 'Support- und Diagnosefunktionen werden schrittweise ergänzt.');
 define('TEXT_BX_IMAGE_MAGICK_IMAGE_TAB_INTRO', 'Konfiguriere Merge und Effekt-Optionen für diese Bildgröße.');
 define('TEXT_BX_IMAGE_MAGICK_FIELD_MERGE_STRING', 'Merge-String');
+define('TEXT_BX_IMAGE_MAGICK_FIELD_MERGE_STRING_HINT', 'Dieses Feld definiert die Merge-Optionen für das gewählte Bildformat.<br>Standardwert: (overlay.gif,10,-50,60,FF0000).<br> Verwendung: (merge_image, x start [neg = von rechts], y start [neg = von unten], Deckkraft, Transparente Farbe im zusammengesetzten Bild).');
 define('TEXT_BX_IMAGE_MAGICK_FIELD_EFFECT_ORDER', 'Effekt-Reihenfolge');
+define('TEXT_BX_IMAGE_MAGICK_FIELD_EFFECT_ORDER_HINT', 'Dieses Feld wird automatisch aus den gewählten Effekten befüllt und definiert die auszuführende Effekt-Reihenfolge.');
+define('TEXT_BX_IMAGE_MAGICK_FIELD_EFFECT_PLACEHOLDER', 'Dieses Feld wird automatisch ausgefüllt.');
 define('TEXT_BX_IMAGE_MAGICK_FIELD_ROUND_EDGES', 'Round Edges Radius');
 define('TEXT_BX_IMAGE_MAGICK_FIELD_DROP_SHADOW', 'Drop Shadow');
 define('TEXT_BX_IMAGE_MAGICK_FIELD_DROP_SHADOW_FADE', 'Drop Shadow Fade');
@@ -54,3 +58,4 @@ define('TEXT_BX_IMAGE_MAGICK_PREVIEW_HINT', 'Hier erscheint später die Live-Vor
 define('TEXT_BX_IMAGE_MAGICK_PREVIEW_PLACEHOLDER', 'Noch keine Vorschau geladen');
 define('TEXT_BX_IMAGE_MAGICK_MESSAGE_SETTINGS_SAVED', 'BX Image Magick Einstellungen gespeichert.');
 define('TEXT_BX_IMAGE_MAGICK_MESSAGE_INVALID_TRANSFORMS_RESET', 'Ungültige Transform-Strings wurden geleert.');
+define('TEXT_BX_IMAGE_MAGICK_MESSAGE_IMAGE_SCALED_DOWN', 'Das Originalbild ist größer als die Anzeige und wurde herunterskaliert.');

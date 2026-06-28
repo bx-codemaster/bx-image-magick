@@ -3,24 +3,28 @@
     "scopes": {
         "shop-root": {
             "hashes": {
-                "/admin/bx_image_magick.php": "d3785dc39c411b21e12d38943db27586",
+                "/admin/bx_image_image.php": "f511278692684ac1f6c7493657943dd3",
+                "/admin/bx_image_magick.php": "fc7454d9025637b246908de5d5e488b2",
                 "/admin/images/icons/heading/bx_image_magick.png": "2802357a97169b03c032d7c8eb71352e",
                 "/admin/includes/classes/ICC/CoatedFOGRA39.icc": "74ff62f330bf0dbe4495b5720542d511",
                 "/admin/includes/classes/ICC/ColorMatchRGB.icc": "91cf26c58e07eda724fdbf3eadce4505",
                 "/admin/includes/classes/ICC/PSOcoated_v3.icc": "2ecf5bdfbd55f6725d15a668afde8a00",
                 "/admin/includes/classes/ICC/sRGB2014.icc": "3947129e0967089c736f91a2989d89d8",
                 "/admin/includes/classes/ICC/sRGB_v4_ICC_preference.icc": "a3fe13b83e7cb992f9ecc60c21ed9722",
-                "/admin/includes/classes/bx_image_magick.php": "2665fecf95fa147e1a806a45e11119ce",
-                "/admin/includes/extra/css/bx_image_magick.php": "afaac65a2378ecd8e006378bd3c0c855",
+                "/admin/includes/classes/bx_image_magick.php": "d8b5be483670fb7950367cd57dc2abb9",
+                "/admin/includes/extra/css/bx_image_magick.php": "a6718bb6341040e282ba3f76cd6deafe",
                 "/admin/includes/extra/filenames/bx_image_magick.php": "fb4fdf6ee56187e3a687b8a2cb401382",
-                "/admin/includes/extra/functions/bx_image_magick.php": "811b43c294646653b1b490414b31e930",
-                "/admin/includes/extra/javascript/bx_image_magick.php": "89ef2366fad31b0e5bf7e14da1d10912",
+                "/admin/includes/extra/functions/bx_image_image.php": "f511278692684ac1f6c7493657943dd3",
+                "/admin/includes/extra/functions/bx_image_magick.php": "66a58e3c636a3eb62771a7e6a27c5ebe",
+                "/admin/includes/extra/javascript/bx_image_magick.php": "2b8453418cf8419a08b38b86447c79e8",
                 "/admin/includes/extra/menu/bx_image_magick.php": "aa30d1e8422db0e5e5ddd600336ba382",
                 "/admin/includes/modules/system/bx_image_magick.php": "533f4c4f43c380dd6d2fd5e542a3dc54",
-                "/lang/english/extra/admin/bx_image_magick.php": "011ba2d478a732e729eae26d9e3b3e67",
-                "/lang/english/modules/system/bx_image_magick.php": "daa35421a9a91e207855d181154de9ea",
-                "/lang/german/extra/admin/bx_image_magick.php": "55b2784ca278190becb0954a28a15876",
-                "/lang/german/modules/system/bx_image_magick.php": "9e07efd69c5fe9eb5a92edb90e3aa9bf"
+                "/lang/english/extra/admin/bx_image_magick.php": "3c9b3b5e865d60d82d4d33b492197712",
+                "/lang/english/modules/system/bx_image_magick.php": "661e5209544fecc530e4e4f2051a0a57",
+                "/lang/german/extra/admin/bx_image_magick.php": "55581f21ae0ff724bf2306af8d613b83",
+                "/lang/german/modules/system/bx_image_magick.php": "b9459fd75dce2364129a29f7404c8908",
+                "/lang/spanish/extra/admin/bx_image_magick.php": "d0a6ad6df2868db40dafb8aa944a92aa",
+                "/lang/spanish/modules/system/bx_image_magick.php": "620a2714fc64d4c8aa1d51d1d599f65e"
             }
         },
         "shop-vendor-mmlc": {

@@ -4,6 +4,22 @@
   if (basename($_SERVER['PHP_SELF']) == 'bx_image_magick.php') {
 ?>
 <style>
+    div#bx_header {
+      display: block; 
+      background: #AF417E; 
+      border-radius: 4px; 
+      margin: 0 0 5px 0; 
+      padding: 10px 0 6px 0;
+    }
+
+    div#bx_header .main {
+      font-weight: bold;
+      color: #fff;
+      margin: 5px 10px;
+      /*text-align: center; */
+    }
+
+
   /* BX Image Magick Admin Styles */
   .magick-tabs .tab-nav {
     list-style: none; 
@@ -132,19 +148,77 @@
   }
 
   .magick-preview-placeholder {
+    display: inline-grid;
+    width: 100%;
+    /* Spalte 1: Breite für die Höhe (auto), Spalte 2: Bildbereich (1fr) */
+    grid-template-columns: auto 1fr; 
+    /* Reihe 1: Breite für die Breite (auto), Reihe 2: Bildbereich (1fr) */
+    grid-template-rows: auto 1fr;
+    gap: 8px; /* Abstand zwischen Texten und Bild */
+    align-items: center;
+    justify-items: center;
     margin-top: 8px;
     min-height: 180px;
     border: 1px dashed #aaa;
     border-radius: 4px;
     background: repeating-linear-gradient(45deg, #fafafa, #fafafa 10px, #f4f4f4 10px, #f4f4f4 20px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
     color: #666;
     padding: 10px;
   }
 
+  /* Die Breiten-Anzeige (oben) */
+  .magick-preview-placeholder::before {
+     content: var(--img-width, "0px"); /* Dynamisch via JS oder statischer Text */
+    grid-column: 2;          /* Sitzt in der zweiten Spalte (über dem Bild) */
+    grid-row: 1;             /* Erste Reihe */
+    font-family: sans-serif;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  /* Die Höhen-Anzeige (links, vertikal) */
+  .magick-preview-placeholder::after {
+    content: var(--img-height, "0px");  /* Dynamisch via JS oder statischer Text */
+    grid-column: 1;          /* Erste Spalte (links vom Bild) */
+    grid-row: 2;             /* Zweite Reihe */
+    font-family: sans-serif;
+    font-size: 12px;
+    font-weight: bold;
+    
+    /* Der CSS-Trick für vertikalen Text */
+    writing-mode: vertical-lr; 
+    transform: rotate(180deg); /* Dreht den Text, damit er von unten nach oben liest (optional) */
+  }
+
+  /* Dein dynamisches Bild (oder der aktuelle Inhalt) */
+  .magick-preview-placeholder img {
+    grid-column: 2;          /* Bild nutzt die Hauptzelle */
+    grid-row: 2;
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* 1. Der Hinweis ist standardmäßig unsichtbar */
+  td.infoBoxContent .magick-size-warning {
+      display: none;
+      margin-top: 8px;
+      padding: 6px 10px;
+      background-color: #fff3cd; /* Dezentes Gelb/Orange für Warnungen */
+      border: 1px solid #ffeeba;
+      color: #856404;
+      border-radius: 4px;
+      font-size: 12px;
+      text-align: center;
+  }
+/* td.infoBoxContent div.magick-size-warning
+   td.infoBoxContent div.magick-preview-placeholder.is-scaled */
+
+  /* 2. NUR wenn der Container die Klasse hat, wird der Hinweis eingeblendet */
+  td.infoBoxContent .magick-preview-placeholder.is-scaled + .magick-size-warning {
+      display: block;
+  }
+  
   .boxRight .contentTable {
     border: 1px solid #ccc;
   }
@@ -158,11 +232,10 @@
     font-size: 1.0rem;
     font-weight: bold;
     color: #666;
-    margin-top: 5px;
+    margin: 5px 0;
   } 
 
   .magick-inline-note {
-    margin-top: 4px;
     padding: 6px 8px;
     border-left: 3px solid #AF417E;
     background: #ffe9f5;
