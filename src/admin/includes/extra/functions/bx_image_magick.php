@@ -132,16 +132,12 @@ function bx_imagemagick_split_top_level(string $value): array {
 	$buffer = '';
 	$depth = 0;
 	$quote = null;
-	$length = strlen((string)$value);
+	$length = strlen($value);
 
 	for ($i = 0; $i < $length; $i++) {
 		$char = $value[$i];
+
 		if ($quote !== null) {
-			if ($char === '\\' && $i + 1 < $length) {
-				$buffer .= $char . $value[$i + 1];
-				$i++;
-				continue;
-			}
 			if ($char === $quote) {
 				$quote = null;
 			}
@@ -149,7 +145,7 @@ function bx_imagemagick_split_top_level(string $value): array {
 			continue;
 		}
 
-		if ($char === '\'' || $char === '"') {
+		if ($char === '"' || $char === "'") {
 			$quote = $char;
 			$buffer .= $char;
 			continue;
@@ -162,7 +158,9 @@ function bx_imagemagick_split_top_level(string $value): array {
 		}
 
 		if ($char === ')') {
-			$depth = max(0, $depth - 1);
+			if ($depth > 0) {
+				$depth--;
+			}
 			$buffer .= $char;
 			continue;
 		}
@@ -185,6 +183,61 @@ function bx_imagemagick_split_top_level(string $value): array {
 	}
 
 	return $parts;
+}
+
+/**
+ * Liefert die Beispielbilder für die Vorschau der bx_image_magick-Adminseite.
+ *
+ * Wenn im generierten Tab-Ordner passende preview_sample-Dateien vorhanden sind,
+ * werden diese bevorzugt ausgegeben und als direkte Anzeige markiert. Fallbacks
+ * auf die statischen Original-Sample-Dateien bleiben erhalten, falls fuer einen
+ * Tab noch keine erzeugten Vorschauen existieren.
+ *
+ * @param string $tabId Aktive Tab-ID (mini, midi, thumbnail, info, popup).
+ * @return array<int, array>
+ */
+function bx_image_magick_get_preview_samples(string $tabId): array {
+	$tabId = trim($tabId);
+	$previewBaseName = 'preview_sample';
+	$previewExtensions = array(
+		'jpg' => array('label' => 'JPG', 'title' => 'JPG-Foto'),
+		'png' => array('label' => 'PNG', 'title' => 'Transparentes PNG'),
+		'gif' => array('label' => 'GIF', 'title' => 'GIF-Grafik'),
+		'webp' => array('label' => 'WebP', 'title' => 'WebP-Bild'),
+	);
+
+	$samples = array();
+	$generatedTabDirFs = DIR_FS_ADMIN . DIR_WS_IMAGES . 'bx-image-magick/generated/' . $tabId . '/';
+	$generatedTabDirWs = DIR_WS_ADMIN . DIR_WS_IMAGES . 'bx-image-magick/generated/' . rawurlencode($tabId) . '/';
+	$originalTabDirFs = DIR_FS_ADMIN . DIR_WS_IMAGES . 'bx-image-magick/';
+	$originalTabDirWs = DIR_WS_ADMIN . DIR_WS_IMAGES . 'bx-image-magick/';
+
+	foreach ($previewExtensions as $extension => $meta) {
+		$generatedFile = $generatedTabDirFs . $previewBaseName . '.' . $extension;
+		if (is_file($generatedFile)) {
+			$samples[] = array(
+				'id'    => $extension,
+				'label' => $meta['label'],
+				'title' => $meta['title'],
+				'src'   => $generatedTabDirWs . $previewBaseName . '.' . $extension,
+				'mode'  => 'direct',
+			);
+			continue;
+		}
+
+		$originalFile = $originalTabDirFs . $previewBaseName . '.' . $extension;
+		if (is_file($originalFile)) {
+			$samples[] = array(
+				'id'    => $extension,
+				'label' => $meta['label'],
+				'title' => $meta['title'],
+				'src'   => $originalTabDirWs . $previewBaseName . '.' . $extension,
+				'mode'  => 'transform',
+			);
+		}
+	}
+
+	return $samples;
 }
 
 /**
@@ -440,6 +493,92 @@ function bx_imagemagick_save_configuration(string $key, string $value): bool {
 								 SET configuration_value = '" . $value . "'
 							 WHERE configuration_key = '" . $key . "'");
 	return true;
+}
+
+/**
+ * Rendert die Vorschau-Galerie unterhalb der rechten Bildvorschau.
+ *
+ * @param string $tabId Aktive Tab-ID.
+ * @return void
+ */
+function bx_image_magick_render_preview_sample_gallery(string $tabId): void {
+	$samples = bx_image_magick_get_preview_samples($tabId);
+	$tabId   = htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8');
+
+	echo '<div class="magick-preview-samples" data-preview-samples-for="' . $tabId . '">';
+	echo '<div class="magick-preview-samples-title">Beispielbilder für die Vorschau</div>';
+	echo '<div class="magick-preview-samples-list">';
+
+	foreach ($samples as $sample) {
+		$sampleSrc   = htmlspecialchars($sample['src'], ENT_QUOTES, 'UTF-8').'?v=new';
+		$sampleLabel = htmlspecialchars($sample['label'], ENT_QUOTES, 'UTF-8');
+		$sampleTitle = htmlspecialchars($sample['title'], ENT_QUOTES, 'UTF-8');
+		$sampleMode  = htmlspecialchars(isset($sample['mode']) ? (string)$sample['mode'] : 'transform', ENT_QUOTES, 'UTF-8');
+
+		echo '<button type="button" class="magick-preview-sample js-magick-preview-sample" data-tab-id="' . $tabId . '" data-preview-src="' . $sampleSrc . '" data-preview-mode="' . $sampleMode . '" title="' . $sampleTitle . '" aria-pressed="false">';
+		echo '<span class="magick-preview-sample-thumb"><img src="' . $sampleSrc . '" alt="' . $sampleLabel . '" /></span>';
+		echo '<span class="magick-preview-sample-label">' . $sampleLabel . '</span>';
+		echo '</button>';
+	}
+
+	echo '</div>';
+	echo '</div>';
+}
+
+/**
+ * Ermittelt den lokalen Dateipfad eines Vorschau-Bildes innerhalb des Shop-Roots.
+ *
+ * Die Funktion dekodiert die uebergebene Bild-URL, extrahiert den Pfadanteil,
+ * normalisiert Trenner und prueft mehrere Kandidaten gegen DIR_FS_CATALOG.
+ * Zurueckgegeben wird nur ein existierender Dateipfad, der nach realpath()-
+ * Aufloesung innerhalb des Katalog-Roots liegt (Path-Traversal-Schutz).
+ *
+ * @param string $imageSrc Bildquelle aus Vorschau/HTML (URL oder relativer Pfad).
+ * @return string Absoluter Dateipfad bei Erfolg, sonst leerer String.
+ */
+function bx_imagemagick_resolve_preview_source(string $imageSrc): string {
+    $catalogRoot = realpath(DIR_FS_CATALOG);
+    if ($catalogRoot === false || $catalogRoot === '') {
+        return '';
+    }
+
+    $decodedSrc = html_entity_decode($imageSrc, ENT_QUOTES, 'UTF-8');
+    $path = parse_url($decodedSrc, PHP_URL_PATH);
+    if (!is_string($path) || $path === '') {
+        return '';
+    }
+
+    $normalizedPath = str_replace('\\', '/', $path);
+    $normalizedPath = preg_replace('#/+#', '/', $normalizedPath);
+    if ($normalizedPath === null || $normalizedPath === '') {
+        return '';
+    }
+
+    $candidates = array();
+    if (defined('DIR_WS_CATALOG')) {
+        $catalogWebPath = str_replace('\\', '/', (string)DIR_WS_CATALOG);
+        if ($catalogWebPath !== '' && strpos($normalizedPath, $catalogWebPath) === 0) {
+            $relativePath = ltrim(substr($normalizedPath, strlen($catalogWebPath)), '/');
+            $candidates[] = DIR_FS_CATALOG . $relativePath;
+        }
+    }
+
+    $candidates[] = DIR_FS_CATALOG . ltrim($normalizedPath, '/');
+
+    foreach ($candidates as $candidate) {
+        $realCandidate = realpath($candidate);
+        if ($realCandidate === false || !is_file($realCandidate)) {
+            continue;
+        }
+
+        if (strpos(str_replace('\\', '/', $realCandidate), str_replace('\\', '/', $catalogRoot)) !== 0) {
+            continue;
+        }
+
+        return $realCandidate;
+    }
+
+    return '';
 }
 
 /**

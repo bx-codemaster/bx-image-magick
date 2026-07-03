@@ -126,16 +126,14 @@ class image_manipulation {
   /**
    * Ermittelt den passenden HTTP-Mime-Type basierend auf dem internen Image-Type
    */
-  protected function getMimeTypeFromImageType(string $image_type): string {
-      // Da ich deine genaue detectImageType-Rückgabe nicht kenne (z.B. String oder Int-Konstante),
-      // hier ein sicherer Fallback direkt über Imagick, falls dein Typ ein String ist:
-      $type = strtolower((string)$image_type);
-      
-      if (strpos($type, 'png') !== false) return 'image/png';
-      if (strpos($type, 'webp') !== false) return 'image/webp';
-      if (strpos($type, 'gif') !== false) return 'image/gif';
-      if (strpos($type, 'avif') !== false) return 'image/avif';
-      
+  protected function getMimeTypeFromImageType(int $image_type): string {
+      if ($image_type === IMAGETYPE_GIF) return 'image/gif';
+      if ($image_type === IMAGETYPE_JPEG) return 'image/jpeg';
+      if ($image_type === IMAGETYPE_PNG) return 'image/png';
+      if (defined('IMAGETYPE_WEBP') && $image_type === IMAGETYPE_WEBP) return 'image/webp';
+      // AVIF aktuell deaktiviert, Block bleibt fuer spaetere Reaktivierung erhalten.
+      // if (defined('IMAGETYPE_AVIF') && $image_type === IMAGETYPE_AVIF) return 'image/avif';
+
       return 'image/jpeg';
   }
 
@@ -260,6 +258,8 @@ class image_manipulation {
       $this->logImagickException($e, __METHOD__, (string)$this->resource_file);
       return;
     } finally {
+      $this->effects_queue = array();
+      $this->merge_data = array();
       $img->clear();
       $img->destroy();
       $this->cleanupTemporarySource();
@@ -334,10 +334,11 @@ class image_manipulation {
       $img->setImageFormat('webp');
       $img->setImageAlphaChannel($this->imagickConst('ALPHACHANNEL_SET', 1));
       $writeTarget = 'webp:' . (string)$destination;
-    } elseif ($this->isImageTypeAvif($imageType)) {
-      $img->setImageFormat('avif');
-      $img->setImageAlphaChannel($this->imagickConst('ALPHACHANNEL_SET', 1));
-      $writeTarget = 'avif:' . (string)$destination;
+    // AVIF aktuell deaktiviert, Block bleibt fuer spaetere Reaktivierung erhalten.
+    // } elseif ($this->isImageTypeAvif($imageType)) {
+    //   $img->setImageFormat('avif');
+    //   $img->setImageAlphaChannel($this->imagickConst('ALPHACHANNEL_SET', 1));
+    //   $writeTarget = 'avif:' . (string)$destination;
     } else {
       $img->setImageFormat('gif');
       $img->setImageAlphaChannel($this->imagickConst('ALPHACHANNEL_SET', 1));
@@ -529,10 +530,10 @@ class image_manipulation {
    * @param string $shadow_backgroundcolor Hintergrundfarbe für Formate ohne Alpha-Kanal.
    * @return void
    */
-  public function drop_shadow($shadow_width, $shadow_colour = '000000', $shadow_backgroundcolor = 'FFFFFF') {
+  public function drop_shadow($shadow_width, $shadow_colour = '000000', $shadow_backgroundcolor = 'FFFFFF', $shadow_fade = 0) {
     $this->effects_queue[] = array(
       'name' => 'drop_shadow',
-      'args' => array((int)$shadow_width, (string)$shadow_colour, (string)$shadow_backgroundcolor),
+      'args' => array((int)$shadow_width, (string)$shadow_colour, (string)$shadow_backgroundcolor, (int)$shadow_fade),
     );
   }
 
@@ -690,9 +691,10 @@ class image_manipulation {
     if ($ext === 'webp' && defined('IMAGETYPE_WEBP')) {
       return IMAGETYPE_WEBP;
     }
-    if ($ext === 'avif' && defined('IMAGETYPE_AVIF')) {
-      return IMAGETYPE_AVIF;
-    }
+    // AVIF aktuell deaktiviert, Block bleibt fuer spaetere Reaktivierung erhalten.
+    // if ($ext === 'avif' && defined('IMAGETYPE_AVIF')) {
+    //   return IMAGETYPE_AVIF;
+    // }
     if ($ext === 'jpg' || $ext === 'jpeg' || $ext === 'jpe') {
       return IMAGETYPE_JPEG;
     }
@@ -707,9 +709,10 @@ class image_manipulation {
     if (strpos($fmt, 'webp') === 0 && defined('IMAGETYPE_WEBP')) {
       return IMAGETYPE_WEBP;
     }
-    if (strpos($fmt, 'avif') === 0 && defined('IMAGETYPE_AVIF')) {
-      return IMAGETYPE_AVIF;
-    }
+    // AVIF aktuell deaktiviert, Block bleibt fuer spaetere Reaktivierung erhalten.
+    // if (strpos($fmt, 'avif') === 0 && defined('IMAGETYPE_AVIF')) {
+    //   return IMAGETYPE_AVIF;
+    // }
     if (strpos($fmt, 'jpg') === 0 || strpos($fmt, 'jpeg') === 0 || strpos($fmt, 'jpe') === 0) {
       return IMAGETYPE_JPEG;
     }
@@ -809,6 +812,11 @@ class image_manipulation {
 
     $sum = $rWeight + $gWeight + $bWeight;
     if ($sum <= 0) {
+      return;
+    }
+
+    if ($rWeight === $gWeight && $gWeight === $bWeight && method_exists($img, 'transformImageColorspace')) {
+      $img->transformImageColorspace($this->imagickConst('COLORSPACE_GRAY', 2));
       return;
     }
 
@@ -1722,9 +1730,10 @@ class image_manipulation {
       }
     }
 
-    if ($this->shouldWriteAvif() && !$this->isImageTypeAvif($this->image_type)) {
-      $this->writeDerivedFormatImage($img, 'avif', $method);
-    }
+    // AVIF aktuell deaktiviert, Block bleibt fuer spaetere Reaktivierung erhalten.
+    // if ($this->shouldWriteAvif() && !$this->isImageTypeAvif($this->image_type)) {
+    //   $this->writeDerivedFormatImage($img, 'avif', $method);
+    // }
   }
 
   /**

@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+if (PHP_SAPI !== 'cli') {
+  http_response_code(403);
+  echo 'Forbidden: This script can only be run via command line (CLI).' . PHP_EOL;
+  exit(1);
+}
+
 /**
  * Reproduzierbarer A/B-Vergleich zwischen GD- und Imagick-Implementierung
  * der Klasse image_manipulation.

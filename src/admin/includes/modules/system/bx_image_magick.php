@@ -122,6 +122,9 @@ class bx_image_magick {
     xtc_db_query("ALTER TABLE ".TABLE_ADMIN_ACCESS." ADD bx_image_magick INTEGER(1)");
     xtc_db_query("UPDATE ".TABLE_ADMIN_ACCESS." SET bx_image_magick = 1");
 
+    xtc_db_query("ALTER TABLE ".TABLE_ADMIN_ACCESS." ADD bx_image_magick_preview INTEGER(1)");
+    xtc_db_query("UPDATE ".TABLE_ADMIN_ACCESS." SET bx_image_magick_preview = 1");
+
 	  $freeId_query = xtc_db_query("SELECT MIN(configuration_group_id+1) AS id 
 			                          					FROM ".TABLE_CONFIGURATION_GROUP." 
 									  						         WHERE (configuration_group_id+1) NOT IN 
@@ -305,12 +308,11 @@ class bx_image_magick {
    */
   public function remove() {
 		xtc_db_query("ALTER TABLE ".TABLE_ADMIN_ACCESS." DROP bx_image_magick;");
+    xtc_db_query("ALTER TABLE ".TABLE_ADMIN_ACCESS." DROP bx_image_magick_preview;");
     xtc_db_query("DELETE FROM ".TABLE_CONFIGURATION." WHERE configuration_key in ('".implode("', '", $this->keys())."')");
     xtc_db_query("DELETE FROM ".TABLE_CONFIGURATION." WHERE configuration_key in ('".implode("', '", $this->keys2())."')");
 		xtc_db_query("DELETE FROM ".TABLE_CONFIGURATION_GROUP." WHERE configuration_group_title = 'BX Image Magick'");
-    xtc_db_query("UPDATE " . TABLE_CONFIGURATION . "
-                           SET configuration_value = 'image_manipulator.php'
-                         WHERE configuration_key = 'IMAGE_MANIPULATOR'");
+    xtc_db_query("UPDATE " . TABLE_CONFIGURATION . " SET configuration_value = 'image_manipulator.php' WHERE configuration_key = 'IMAGE_MANIPULATOR'");
   }
 
 }
