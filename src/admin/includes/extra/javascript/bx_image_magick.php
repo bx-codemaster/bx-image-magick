@@ -259,15 +259,13 @@
         const finalHeight = forcedHeight ? parseInt(forcedHeight, 10) : img.naturalHeight;
         const actualWidth = img.naturalWidth > 0 ? img.naturalWidth : img.clientWidth;
         const actualHeight = img.naturalHeight > 0 ? img.naturalHeight : img.clientHeight;
-
         placeholder.style.setProperty('--img-width', `"${finalWidth}px"`);
         placeholder.style.setProperty('--img-height', `"${finalHeight}px"`);
         placeholder.style.setProperty('--img-width-label', `"Max: ${finalWidth}px | Ist: ${actualWidth}px"`);
         placeholder.style.setProperty('--img-height-label', `"Max: ${finalHeight}px | Ist: ${actualHeight}px"`);
 
-        // Wenn das Bild kleiner gerendert wird als seine echten (oder erzwungenen) Maße,
-        // dann stößt es gerade an die Container-Grenzen (max-width: 100% greift)
-        if (finalWidth > img.clientWidth || finalHeight > img.clientHeight) {
+        // Markiere nur dann als skaliert, wenn das tatsächliche Bild die Maximalwerte überschreitet.
+        if (actualWidth > finalWidth || actualHeight > finalHeight) {
           placeholder.classList.add('is-scaled');
         } else {
           placeholder.classList.remove('is-scaled');

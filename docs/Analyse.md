@@ -1,83 +1,104 @@
 
-
-Die PHP-Klasse [image_manipulation] in [bx_image_magick.php] dient der Bildbearbeitung und -manipulation in modified eCommerce. Sie ist als moderner und leistungsfähiger Ersatz (Drop-in-Replacement) für die traditionelle, GD-basierte Bildverarbeitung konzipiert und nutzt die PHP-Bibliothek **Imagick** (ImageMagick).
-
-Hier ist eine detaillierte Analyse der Funktionsweise und des Gebrauchs der Klasse:
+Die PHP-Klasse image_manipulation in bx_image_magick.php dient der Bildbearbeitung und -manipulation in modified eCommerce. Sie ist als moderner und leistungsfähiger Ersatz (Drop-in-Replacement) für die klassische GD-basierte Verarbeitung konzipiert und nutzt Imagick.
 
 ---
 
-### 1. Hauptmerkmale & Funktionalitäten
+### 1. Hauptmerkmale und aktueller Status
 
-*   **Hochwertige Skalierung & Resizing:** Nutzt den Lanczos-Filter (`FILTER_LANCZOS`), um Bilder qualitativ hochwertiger und schärfer zu verkleinern als die GD-Bibliothek.
-*   **Farbraum-Konvertierung (CMYK zu RGB):** Wandelt Produktbilder im CMYK-Farbraum (oft von Fotografen geliefert) über ICC-Farbprofile (`PSOcoated_v3.icc`, `sRGB2014.icc`) automatisch in den RGB-Farbraum um, um Farbverfälschungen im Browser zu verhindern.
-*   **EXIF-Ausrichtungskorrektur:** Liest EXIF-Metadaten von JPEG-Dateien aus und dreht das Bild automatisch in die richtige Ausrichtung, falls dieses z. B. hochkant mit einem Smartphone aufgenommen wurde.
-*   **Effekt-Pipeline (Transform-Befehle):** Unterstützt eine Kette von Transformationen, die entweder über einen Konfigurations-String (z. B. aus der Datenbank) geparst oder direkt über Methodenaufrufe registriert werden.
-*   **Wasserzeichen & Overlays (Merge-System):** Ermöglicht das präzise Platzieren von Logos oder Wasserzeichen über dem Bild inklusive Skalierung, Transparenz (Opacity) und transparenten Hintergrundfarben.
-*   **Unterstützung moderner Bildformate:** Erzeugt neben dem Standard-Bildtyp bei Bedarf automatisch moderne Ableitungen im **WebP-** und/oder **AVIF-**Format zur Optimierung der Ladezeiten.
-*   **Browser-Ausgabe oder Speichern:** Kann das verarbeitete Bild entweder direkt als Datei auf dem Server speichern oder als HTTP-Stream an den Browser ausgeben.
+* Hochwertige Skalierung und Resizing: Die Klasse nutzt FILTER_LANCZOS für gute Verkleinerungsqualität.
+* Farbraum-Konvertierung (CMYK zu RGB): CMYK-Bilder werden über ICC-Profile nach RGB konvertiert, um Browser-Farbabweichungen zu reduzieren.
+* EXIF-Ausrichtungskorrektur: JPEGs werden bei Bedarf anhand der EXIF-Orientierung automatisch korrekt gedreht.
+* Effekt-Pipeline: Transform-Strings werden geparst und in eine interne Effekt-Queue überführt.
+* Merge-/Overlay-System: Wasserzeichen oder Logos können mit Position, Opazität, Skalierung und Transparenzfarbe eingeblendet werden.
+* Moderne Formate:
+  * WebP ist aktiv in der Ableitungs-Pipeline (konfigurationsabhängig).
+  * AVIF ist im aktuellen Stand vorbereitet, aber in den relevanten Schreibpfaden derzeit deaktiviert (auskommentiert).
+* Browser-Ausgabe oder Speichern:
+  * Ausgabe an den Browser ist möglich (setOutputToBrowser(true)).
+  * Wichtig: create() erwartet trotzdem eine gesetzte destination_file (nicht leer), sonst bricht die Methode früh ab.
 
 ---
 
 ### 2. Wichtige Methoden und Ablauf
 
-#### A. Initialisierung: [__construct]
+#### A. Initialisierung: __construct
+
 ```php
 function __construct($resource_file, $max_width, $max_height, $destination_file = '', $compression = null, $transform = '')
 ```
-*   **Parameter:**
-    *   `$resource_file`: Pfad zum Originalbild auf dem Server.
-    *   `$max_width` / `$max_height`: Gewünschte Maximaldimensionen. Das Seitenverhältnis (Aspect Ratio) wird beibehalten.
-    *   `$destination_file`: Pfad, unter dem das manipulierte Bild gespeichert werden soll.
-    *   `$compression`: Kompressionsrate (1 bis 100). Standardwert ist 85 (oder die Konstante `IMAGE_QUALITY`).
-    *   `$transform`: Optionaler String mit aneinandergereihten Manipulationen (z. B. `"greyscale(8,8,8),round_edges(10,#ffffff)"`). Wenn leer, wird anhand des Zielpfads versucht, den passenden Transform-String automatisch aufzulösen.
 
-#### B. Pipeline-Start: [create]
-Diese Methode führt die eigentliche Bildverarbeitung aus:
-1. Prüft, ob Imagick installiert und die Quelldatei vorhanden ist.
-2. Korrigiert die Orientierung ([correctImageOrientation].
-3. Berechnet die Zielgröße und skaliert das Bild.
-4. Führt ggf. die CMYK-zu-RGB-Konvertierung durch.
-5. Initialisiert die Alpha-Pipeline (für Transparenzen).
-6. Wendet die registrierten Effekte ([applyEffectOperations] an.
-7. Speichert das Bild (oder gibt es an den Browser aus) und generiert moderne Formate (WebP, AVIF).
+Parameter:
 
-#### C. Wasserzeichen hinzufügen: [merge]
+* $resource_file: Pfad zum Originalbild.
+* $max_width / $max_height: Maximaldimensionen; Seitenverhältnis bleibt erhalten.
+* $destination_file: Zielpfad für die Ausgabe.
+* $compression: Qualitätswert (Standard aus IMAGE_QUALITY, sonst 85).
+* $transform: Optionaler Transform-String.
+
+Wenn $transform leer ist, versucht die Klasse einen Auto-Transform anhand des Zielpfads aufzulösen.
+Optional kann die Verarbeitung direkt im Konstruktor starten (abhängig von MODULE_BX_IMAGE_MAGICK_AUTO_CREATE_ON_CONSTRUCT).
+
+#### B. Pipeline-Start: create
+
+create() führt die eigentliche Verarbeitung aus:
+
+1. Prüfen, ob Imagick verfügbar ist.
+2. Prüfen, ob Quelldatei existiert und destination_file gesetzt ist.
+3. Orientierung korrigieren (correctImageOrientation).
+4. Zielgröße berechnen und skalieren.
+5. Falls nötig CMYK zu RGB konvertieren.
+6. Alpha-Pipeline vorbereiten.
+7. Effekte und Merge-Operationen anwenden.
+8. Ausgabeformat konfigurieren, schreiben und ggf. moderne Ableitungen erzeugen.
+9. Optional direkte Browser-Ausgabe statt Dateischreiben.
+
+#### C. Merge-System: merge
+
 ```php
 public function merge($merge_file, $x_pos = 0, $y_pos = 0, $opacity = 100, $scale_or_trans_colour = 'FF0000')
 ```
-*   Fügt das Overlay `$merge_file` der Merge-Queue hinzu.
-*   Negative `$x_pos` oder `$y_pos` werden als Versatz von rechts bzw. unten interpretiert.
 
-#### D. Manuelle Effekte registrieren:
-*   [greyscale()]: Wandelt das Bild gewichtet in Graustufen um.
-*   [round_edges()]: Rundet die Ecken ab.
-*   [drop_shadow()]: Erzeugt einen weichen Schatten um das Bild.
-*   [ellipse()]: Schneidet das Bild elliptisch/kreisförmig aus.
-*   [frame()]: Fügt einen Rahmen hinzu.
-*   [bevel()]: Hebt die Kanten plastisch hervor (3D-Effekt).
-*   [motion_blur()]: Wendet eine Bewegungsunschärfe an.
+* Legt ein Overlay in der Merge-Queue ab.
+* Negative x/y-Koordinaten werden als Offset von rechts bzw. unten interpretiert.
+
+#### D. Manuelle Effekte registrieren
+
+Unterstützt sind u. a.:
+
+* greyscale()
+* round_edges()
+* drop_shadow($shadow_width, $shadow_colour, $shadow_backgroundcolor, $shadow_fade)
+* ellipse()
+* frame()
+* bevel()
+* motion_blur()
 
 ---
 
-### 3. Anwendungsbeispiele
+### 3. Hinweise zur Format-Erzeugung
 
-#### Beispiel 1: Einfache Bildverkleinerung und Speichern
-Verkleinert ein hochgeladenes Bild auf maximal 800x600 Pixel und speichert es ab. Wenn konfiguriert, werden automatisch auch `.webp`/`.avif`-Versionen erzeugt.
+* WebP-Ableitungen werden abhängig von der Konfiguration erzeugt.
+* AVIF ist aktuell vorbereitet, aber in der aktiven Pipeline auskommentiert.
+* createWebp() ist weiterhin als kompatibler Ergänzungsweg vorhanden.
+
+---
+
+### 4. Anwendungsbeispiele
+
+#### Beispiel 1: Verkleinern und speichern
 
 ```php
 $img = new image_manipulation(
-    '/pfad/zu/original/bild.jpg', // Quelle
-    800,                          // Max. Breite
-    600,                          // Max. Höhe
-    '/pfad/zu/ziel/bild.jpg'      // Ziel
+    '/pfad/zu/original/bild.jpg',
+    800,
+    600,
+    '/pfad/zu/ziel/bild.jpg'
 );
 
-// Führt die Operationen aus
 $img->create();
 ```
 
-#### Beispiel 2: Bild mit Effekten und Wasserzeichen (Manuell)
-Hier runden wir die Ecken ab, fügen einen Schatten hinzu und legen ein Wasserzeichen-Logo unten rechts (mit 10px Abstand) ab.
+#### Beispiel 2: Effekte und Wasserzeichen
 
 ```php
 $img = new image_manipulation(
@@ -87,51 +108,48 @@ $img = new image_manipulation(
     '/pfad/zu/ziel_produkt.png'
 );
 
-// Effekte in Queue eintragen
-$img->round_edges(15, 'FFFFFF'); // Ecken-Radius 15px, weißer Hintergrund
-$img->drop_shadow(10, '000000', 'FFFFFF', 65); // 10px schwarzer Schatten
+$img->round_edges(15, 'FFFFFF');
+$img->drop_shadow(10, '000000', 'FFFFFF', 65);
 
-// Wasserzeichen (Logo) unten rechts platzieren (-10, -10), mit 80% Deckkraft
 $img->merge(
     '/pfad/zu/wasserzeichen.png',
-    -10, // x-offset von rechts
-    -10, // y-offset von unten
-    80   // Opacity 80%
+    -10,
+    -10,
+    80
 );
 
-// Pipeline ausführen und Datei schreiben
 $img->create();
 ```
 
-#### Beispiel 3: Verwendung per Transform-String (Kompakt)
-Dieses Muster wird häufig verwendet, um vordefinierte Einstellungen aus dem Admin-Bereich (siehe [admin/bx_image_magick.php] anzuwenden.
+#### Beispiel 3: Transform-String
 
 ```php
-$transformations = "greyscale(8,8,8),round_edges(10,#ffffff),drop_shadow(5,#000000,#ffffff,60)";
+$transformations = 'greyscale(8,8,8),round_edges(10,#ffffff),drop_shadow(5,#000000,#ffffff,60)';
 
 $img = new image_manipulation(
     '/pfad/zu/bild.jpg',
     400,
     400,
     '/pfad/zu/ziel.jpg',
-    90, // Qualität
+    90,
     $transformations
 );
 
 $img->create();
 ```
 
-#### Beispiel 4: Direkte Ausgabe an den Browser
-Nützlich für dynamisch generierte Bilder oder Thumbnails "on-the-fly".
+#### Beispiel 4: Direkte Ausgabe an den Browser (korrekter aktueller Stand)
+
+Hinweis: destination_file muss gesetzt sein, auch wenn die Ausgabe an den Browser erfolgt.
 
 ```php
 $img = new image_manipulation(
     '/pfad/zu/bild.jpg',
     200,
-    200
+    200,
+    '/tmp/preview.jpg'
 );
 
-// Header senden und direkt ausgeben
 $img->setOutputToBrowser(true)
     ->create();
 exit;

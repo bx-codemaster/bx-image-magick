@@ -6,8 +6,11 @@ Die Klasse `image_manipulation` verarbeitet Bilder mit Imagick:
 - Skalierung auf Zielmaße
 - optionale Effekte (z. B. `round_edges`, `drop_shadow`)
 - optionale Overlays per `merge()`
-- Schreiben des Zielformats (JPG/PNG/GIF/WebP/AVIF)
+- Schreiben des Zielformats (JPG/PNG/GIF/WebP)
 - optionales Ableiten moderner Formate
+
+Hinweis zum aktuellen Stand:
+- AVIF ist im Code vorbereitet, aber in der aktiven Ausgabe-Pipeline derzeit deaktiviert.
 
 Klasse: `src/admin/includes/classes/bx_image_magick.php`
 
@@ -72,6 +75,9 @@ Kompatibilitätsmethode für Legacy-Aufrufe.
 Verhalten:
 - Schreibt nur, wenn `IMAGE_TYPE_EXTENSION` auf `webp` steht.
 - Schreibt nicht doppelt, wenn WebP bereits während `create()` erzeugt wurde.
+
+Praxis:
+- In aktuellen Integrationen ist ein zusätzlicher Aufruf oft nicht nötig, weil `create()` WebP bereits selbst erzeugen kann (wenn konfiguriert).
 
 ### `merge($merge_file, $x_pos = 0, $y_pos = 0, $opacity = 100, $scale_or_trans_colour = 'FF0000')`
 
@@ -173,10 +179,13 @@ $img = new image_manipulation(
   ''
 );
 
-$img->greyscale();
+$img->greyscale(85, 85, 85);
 $img->destination_file = DIR_FS_CATALOG_IMAGES . 'product_images/info_images/' . $products_image_name;
 $img->create();
 ```
+
+Hinweis:
+- `greyscale()` ohne Parameter entspricht effektiv einer Gewichtung 0,0,0 und erzeugt daher keine sinnvolle Graustufen-Umwandlung.
 
 ## Typische Stolperfallen
 
