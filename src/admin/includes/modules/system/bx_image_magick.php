@@ -315,4 +315,117 @@ class bx_image_magick {
     xtc_db_query("UPDATE " . TABLE_CONFIGURATION . " SET configuration_value = 'image_manipulator.php' WHERE configuration_key = 'IMAGE_MANIPULATOR'");
   }
 
+	public function custom(): never {
+	  global $messageStack;
+	  $result = true;
+		  
+	  // Dateien definieren
+	  $dirs_and_files   = array();
+	  $dirs_and_files[] = DIR_FS_ADMIN . DIR_WS_IMAGES . 'bx-image-magick/';
+
+    $dirs_and_files[] = DIR_FS_ADMIN . 'bx_image_magick_preview.php';
+    $dirs_and_files[] = DIR_FS_ADMIN . 'bx_image_magick.php';
+    $dirs_and_files[] = DIR_FS_ADMIN . 'images/icons/heading/bx_image_magick.png';
+    $dirs_and_files[] = DIR_FS_ADMIN . 'includes/classes/bx_image_magick.php';
+    $dirs_and_files[] = DIR_FS_ADMIN . 'includes/classes/ICC/CoatedFOGRA39.icc';
+    $dirs_and_files[] = DIR_FS_ADMIN . 'includes/classes/ICC/ColorMatchRGB.icc';
+    $dirs_and_files[] = DIR_FS_ADMIN . 'includes/classes/ICC/PSOcoated_v3.icc';
+    $dirs_and_files[] = DIR_FS_ADMIN . 'includes/classes/ICC/sRGB_v4_ICC_preference.icc';
+    $dirs_and_files[] = DIR_FS_ADMIN . 'includes/classes/ICC/sRGB2014.icc';
+    $dirs_and_files[] = DIR_FS_ADMIN . 'includes/extra/csrf_exclusion/bx_image_magick_preview.php';
+    $dirs_and_files[] = DIR_FS_ADMIN . 'includes/extra/css/bx_image_magick.php';
+    $dirs_and_files[] = DIR_FS_ADMIN . 'includes/extra/filenames/bx_image_magick.php';
+    $dirs_and_files[] = DIR_FS_ADMIN . 'includes/extra/functions/bx_image_magick.php';
+    $dirs_and_files[] = DIR_FS_ADMIN . 'includes/extra/javascript/bx_image_magick.php';
+    $dirs_and_files[] = DIR_FS_ADMIN . 'includes/extra/menu/bx_image_magick.php';
+    $dirs_and_files[] = DIR_FS_CATALOG . 'lang/english/extra/admin/bx_image_magick.php';
+    $dirs_and_files[] = DIR_FS_CATALOG . 'lang/english/modules/system/bx_image_magick.php';
+    $dirs_and_files[] = DIR_FS_CATALOG . 'lang/german/extra/admin/bx_image_magick.php';
+    $dirs_and_files[] = DIR_FS_CATALOG . 'lang/german/modules/system/bx_image_magick.php';
+    $dirs_and_files[] = DIR_FS_CATALOG . 'lang/spanish/extra/admin/bx_image_magick.php';
+    $dirs_and_files[] = DIR_FS_CATALOG . 'lang/spanish/modules/system/bx_image_magick.php';
+
+	  // Dateien löschen
+	  foreach ($dirs_and_files as $dir_or_file) {
+			if (!$this->secureDelete($dir_or_file)) {
+				$messageStack->add_session($dir_or_file.MODULE_BX_IMAGE_MAGICK_TEXT_COULD_NOT_BE_DELETED, 'error');
+				$result = false;
+			}
+	  }
+		  
+	  if ($result === true) {
+		  $messageStack->add_session(MODULE_BX_IMAGE_MAGICK_TEXT_SUCCESSFULLY_REMOVED, 'success');
+    } else {
+		  $messageStack->add_session(MODULE_BX_IMAGE_MAGICK_TEXT_REMOVAL_INCOMPLETE, 'error');
+    }
+		  
+	  // Datei selbst löschen
+	  $this->secureDelete(DIR_FS_CATALOG.DIR_ADMIN.'includes/modules/system/bx_image_magick.php');
+
+    xtc_redirect(xtc_href_link(FILENAME_MODULE_EXPORT, 'set=system'));
+  }
+
+  private function secureDelete(string $path): bool {
+    // 1. Existiert der Pfad überhaupt?
+    if (!file_exists($path)) {
+      return true;
+    }
+
+    // --- SICHERHEITS-CHECK ---
+    // Holt den echten, bereinigten Pfad (löst relative Teile auf)
+    $realPath  = realpath($path);
+    $adminRoot = realpath(DIR_FS_ADMIN);
+
+    // Sicherheitsregel A: Pfad darf nicht leer sein
+    if (empty($realPath) || empty($adminRoot)) {
+      return false;
+    }
+
+    // Sicherheitsregel B: Wenn der Pfad EXAKT dein Admin-Hauptordner 
+    // oder das Hauptverzeichnis (/) ist -> SOFORT ABBRECHEN!
+    if ($realPath === $adminRoot || $realPath === DIRECTORY_SEPARATOR) {
+      return false; 
+    }
+    // -----------------------------------
+
+    if (!is_writable($realPath)) {
+      return false;
+    }
+
+    // Wenn es eine Datei oder ein Symlink ist -> nur diese löschen und beenden!
+    if (!is_dir($realPath) || is_link($realPath)) {
+      return unlink($realPath);
+    }
+
+    // Nur wenn es ein Ordner ist, wird tiefer gegangen
+    try {
+      $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($realPath, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+      );
+
+      foreach ($iterator as $item) {
+        $itemPath = $item->getRealPath();
+
+        if (!is_writable($itemPath)) {
+          return false;
+        }
+        
+        if ($item->isDir() && !$item->isLink()) {
+          if (!rmdir($itemPath)) {
+            return false;
+          }
+        } else {
+          if (!unlink($itemPath)) {
+            return false;
+          }
+        }
+      }
+    } catch (UnexpectedValueException $e) {
+      return false;
+    }
+
+    return rmdir($realPath);
+  }
+
 }

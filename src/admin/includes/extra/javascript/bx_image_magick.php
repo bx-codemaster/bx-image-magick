@@ -255,17 +255,27 @@
       const setProperties = () => {
         // Wenn über den Tab feste PHP-Dimensionen mitgegeben wurden, nutze diese.
         // Ansonsten nimm die echten Abmessungen des Bildes als Fallback.
-        const finalWidth = forcedWidth ? parseInt(forcedWidth, 10) : img.naturalWidth;
-        const finalHeight = forcedHeight ? parseInt(forcedHeight, 10) : img.naturalHeight;
-        const actualWidth = img.naturalWidth > 0 ? img.naturalWidth : img.clientWidth;
-        const actualHeight = img.naturalHeight > 0 ? img.naturalHeight : img.clientHeight;
+        const finalWidth   = forcedWidth           ? parseInt(forcedWidth, 10)  : img.naturalWidth;
+        const finalHeight  = forcedHeight          ? parseInt(forcedHeight, 10) : img.naturalHeight;
+        const actualWidth  = img.naturalWidth > 0  ? img.naturalWidth           : img.clientWidth;
+        const actualHeight = img.naturalHeight > 0 ? img.naturalHeight          : img.clientHeight;
+
+        // Ermittle die echten (nativen) Maße des geladenen Bildes
+        const nativeWidth  = img.naturalWidth  || 0;
+        const nativeHeight = img.naturalHeight || 0;
+
+        // Ermittle die tatsächlich im Browser gerenderten Maße (CSS-Layout)
+        const renderedWidth  = img.clientWidth  || 0;
+        const renderedHeight = img.clientHeight || 0;
+
         placeholder.style.setProperty('--img-width', `"${finalWidth}px"`);
         placeholder.style.setProperty('--img-height', `"${finalHeight}px"`);
         placeholder.style.setProperty('--img-width-label', `"Max: ${finalWidth}px | Ist: ${actualWidth}px"`);
         placeholder.style.setProperty('--img-height-label', `"Max: ${finalHeight}px | Ist: ${actualHeight}px"`);
 
-        // Markiere nur dann als skaliert, wenn das tatsächliche Bild die Maximalwerte überschreitet.
-        if (actualWidth > finalWidth || actualHeight > finalHeight) {
+        // Nur markieren, wenn die Anzeige im Browser von der Originalgröße abweicht
+        // (Toleranz von 1px abfangen, um Rundungsfehler im Browser auszugleichen)
+        if (nativeWidth > 0 && (Math.abs(nativeWidth - renderedWidth) > 1 || Math.abs(nativeHeight - renderedHeight) > 1)) {
           placeholder.classList.add('is-scaled');
         } else {
           placeholder.classList.remove('is-scaled');
@@ -383,7 +393,7 @@
       if (!positioners.length) return;
 
       const MAX_DISPLAY_WIDTH  = 600;
-      const MAX_DISPLAY_HEIGHT = 400;
+      const MAX_DISPLAY_HEIGHT = 600;
 
       positioners.forEach(function(positioner) {
         const tabId = positioner.getAttribute('data-tab-id') || '';

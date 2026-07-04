@@ -15,7 +15,8 @@
  */
 
 define('MODULE_BX_IMAGE_MAGICK_TITLE', 'BX Image Magick - <span style="font-weight: normal;">Edición de imágenes con ImageMagick</span>');
-define('MODULE_BX_IMAGE_MAGICK_DESCRIPTION', '
+
+$description = '
 <details class="bxac-card">
 	<summary class="bxac-summary" style="list-style: none; display: inline-flex; align-items: center; gap: 8px; width: 100%;">
     <span class="bxac-arrow" style="font-size: 2rem;">▸</span>
@@ -71,7 +72,13 @@ define('MODULE_BX_IMAGE_MAGICK_DESCRIPTION', '
 		Los perfiles Legacy CoatedFOGRA39 y ColorMatchRGB son buenas opciones de respaldo, pero no la primera elección para nuevas configuraciones.
 		La mayor diferencia visible casi siempre se produce en el perfil de origen CMYK; un perfil de origen incorrecto conduce rápidamente a desviaciones de color o colores apagados.</p>
   </div>
-</details>');
+</details>';
+
+if((!defined('MODULE_BX_IMAGE_MAGICK_STATUS')) || (MODULE_BX_IMAGE_MAGICK_STATUS != 'True') && basename($_SERVER['PHP_SELF']) == 'module_export.php') {
+	$description .= '<p><a class="button btnbox but_red" style="text-align:center;" onclick="return confirmLink(\'¿Deseas eliminar todos los archivos?\', \'\' ,this);" href="'.xtc_href_link(FILENAME_MODULE_EXPORT, 'set=system&module=bx_image_magick&action=custom').'">Eliminar todos los archivos del módulo</a></p>';
+}
+
+define('MODULE_BX_IMAGE_MAGICK_DESCRIPTION', $description);
 
 define('MODULE_BX_IMAGE_MAGICK_STATUS_TITLE', 'Estado');
 define('MODULE_BX_IMAGE_MAGICK_STATUS_DESC', '¿Activar módulo?');
@@ -99,3 +106,7 @@ define('PRODUCT_IMAGE_THUMBNAIL_TRANSFORM_TITLE', 'Cadena de transformación par
 define('PRODUCT_IMAGE_THUMBNAIL_TRANSFORM_DESC', 'Orden de efectos para imágenes Thumbnail, por ejemplo, round_edges(4),drop_shadow(3).');
 
 define('MODULE_BX_IMAGE_MAGICK_IMAGICK_ERROR', '¡ERROR! El módulo <strong>' . constant('MODULE_BX_IMAGE_MAGICK_TITLE') . '</strong> no se puede instalar porque falta la biblioteca Imagick.');
+
+define('MODULE_BX_IMAGE_MAGICK_TEXT_COULD_NOT_BE_DELETED', '¡ERROR! El módulo <strong>' . constant('MODULE_BX_IMAGE_MAGICK_TITLE') . '</strong> no se pudo eliminar.');
+define('MODULE_BX_IMAGE_MAGICK_TEXT_SUCCESSFULLY_REMOVED', '¡ÉXITO! El módulo <strong>' . constant('MODULE_BX_IMAGE_MAGICK_TITLE') . '</strong> se eliminó correctamente.');
+define('MODULE_BX_IMAGE_MAGICK_TEXT_REMOVAL_INCOMPLETE', '¡ERROR! El módulo <strong>' . constant('MODULE_BX_IMAGE_MAGICK_TITLE') . '</strong> no se pudo eliminar completamente.');

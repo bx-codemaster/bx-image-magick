@@ -274,27 +274,20 @@
   }
 
   .magick-preview-placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: block;
     position: relative;
-    width: 100%;
+    width: auto;
     margin-top: 8px;
-    min-height: 240px;
     border: 1px dashed #aaa;
     border-radius: 4px;
     background: repeating-linear-gradient(45deg, #fafafa, #fafafa 10px, #f4f4f4 10px, #f4f4f4 20px);
     color: #666;
     padding: 26px 16px 16px 36px;
-    box-sizing: border-box;
   }
 
   .magick-preview-image-area {
     position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: fit-content;
+    display: block;
     max-width: 100%;
     margin: 0 auto;
     overflow: hidden;
