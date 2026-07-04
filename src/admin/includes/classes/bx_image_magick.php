@@ -131,7 +131,7 @@ class image_manipulation {
       if ($image_type === IMAGETYPE_JPEG) return 'image/jpeg';
       if ($image_type === IMAGETYPE_PNG) return 'image/png';
       if (defined('IMAGETYPE_WEBP') && $image_type === IMAGETYPE_WEBP) return 'image/webp';
-      // AVIF aktuell deaktiviert, Block bleibt fuer spaetere Reaktivierung erhalten.
+      // AVIF aktuell deaktiviert, Block bleibt für spätere Reaktivierung erhalten.
       // if (defined('IMAGETYPE_AVIF') && $image_type === IMAGETYPE_AVIF) return 'image/avif';
 
       return 'image/jpeg';
